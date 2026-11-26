@@ -1,0 +1,97 @@
+:root {
+    --robbani-red: #D32F2F;
+    --robbani-red-dark: #B71C1C;
+    --robbani-yellow: #FBC02D;
+    --robbani-blue: #1976D2;
+    --bg-light: #F8FAFC;
+    --text-dark: #0F172A;
+    --card-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.01);
+}
+
+body {
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    background-color: var(--bg-light);
+    color: var(--text-dark);
+    margin: 0;
+    padding: 0;
+}
+
+.navbar-brand-custom {
+    background: linear-gradient(135deg, var(--robbani-red), var(--robbani-red-dark));
+    color: white !important;
+    padding: 1rem 1.5rem;
+    box-shadow: 0 4px 12px rgba(211, 47, 47, 0.2);
+}
+
+.brand-subtitle {
+    color: var(--robbani-yellow);
+    font-size: 0.8rem;
+    font-style: italic;
+}
+
+.card-custom {
+    border: none;
+    border-radius: 16px;
+    background: white;
+    box-shadow: var(--card-shadow);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.card-custom:hover {
+    box-shadow: 0 20px 30px -10px rgba(0, 0, 0, 0.08);
+}
+
+.btn-robbani {
+    background: linear-gradient(135deg, var(--robbani-red), var(--robbani-red-dark));
+    color: white;
+    font-weight: 600;
+    border: none;
+    border-radius: 10px;
+    padding: 0.6rem 1.4rem;
+}
+
+.btn-robbani:hover {
+    background: linear-gradient(135deg, #C62828, #9A0007);
+    color: white;
+}
+
+.badge-status {
+    padding: 0.4em 0.8em;
+    font-size: 0.85rem;
+    border-radius: 8px;
+    font-weight: 600;
+}
+
+.badge-exam-code {
+    background-color: #FEF3C7;
+    color: #92400E;
+    font-size: 1.1rem;
+    font-weight: 700;
+    letter-spacing: 1px;
+    padding: 0.4rem 1rem;
+    border-radius: 8px;
+    border: 1px dashed #F59E0B;
+}
+
+.qr-container {
+    background: white;
+    padding: 1.5rem;
+    border-radius: 16px;
+    display: inline-block;
+    border: 2px solid #E2E8F0;
+}
+
+@media print {
+    body * {
+        visibility: hidden;
+    }
+    #printableQrArea, #printableQrArea * {
+        visibility: visible;
+    }
+    #printableQrArea {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 100%;
+    }
+}

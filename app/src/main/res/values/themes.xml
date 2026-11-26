@@ -1,0 +1,24 @@
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <!-- Base application theme. -->
+    <style name="Theme.RobbaniExam" parent="Theme.MaterialComponents.DayNight.NoActionBar">
+        <!-- Primary brand color. -->
+        <item name="colorPrimary">@color/robbani_red</item>
+        <item name="colorPrimaryVariant">@color/robbani_red_dark</item>
+        <item name="colorOnPrimary">@color/white</item>
+        <!-- Secondary brand color. -->
+        <item name="colorSecondary">@color/robbani_yellow</item>
+        <item name="colorSecondaryVariant">@color/robbani_yellow_dark</item>
+        <item name="colorOnSecondary">@color/black</item>
+
+        <!-- Status bar color. -->
+        <item name="android:statusBarColor">@color/robbani_red_dark</item>
+        <item name="android:windowLightStatusBar">false</item>
+    </style>
+
+    <!-- Splash Screen Theme -->
+    <style name="Theme.RobbaniExam.Splash" parent="Theme.MaterialComponents.Light.NoActionBar">
+        <item name="android:statusBarColor">@color/robbani_red</item>
+        <item name="android:windowBackground">@color/robbani_red</item>
+        <item name="android:windowLightStatusBar">false</item>
+    </style>
+</resources>

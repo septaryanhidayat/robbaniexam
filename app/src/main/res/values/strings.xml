@@ -1,0 +1,28 @@
+<resources>
+    <string name="app_name">Robbani Exam</string>
+    <string name="school_name">Sekolah Islam Terpadu ROBBANI</string>
+    <string name="school_motto">Because, Every Child is Unique</string>
+
+    <!-- Main Screen -->
+    <string name="student_identity_title">Identitas Siswa</string>
+    <string name="student_name_hint">Nama Lengkap Siswa</string>
+    <string name="student_class_hint">Pilih / Ketik Kelas (Contoh: 7A, 9B, X IPA 1)</string>
+    <string name="student_nis_hint">NIS / Nomor Ujian</string>
+    <string name="exam_code_hint">Masukkan 6-Digit Kode Ujian / Token</string>
+    <string name="btn_start_exam">Masuk Ujian</string>
+    <string name="btn_scan_qr">Scan QR Code Ujian</string>
+
+    <!-- Security & Warnings -->
+    <string name="warning_title">Peringatan Kecurangan!</string>
+    <string name="warning_app_switch">Anda terdeteksi meninggalkan aplikasi ujian!</string>
+    <string name="warning_split_screen">Dilarang menggunakan mode split screen saat ujian!</string>
+    <string name="warning_developer_mode">Harap matikan USB Debugging / Developer Options sebelum ujian!</string>
+    <string name="max_warning_reached">Batas Maksimal Pelanggaran Tercapai! Layar terkunci. Minta pengawas/guru untuk membuka kunci.</string>
+
+    <!-- Admin PIN Exit -->
+    <string name="admin_pin_title">Buka Kunci / Keluar Ujian</string>
+    <string name="admin_pin_hint">Masukkan PIN Admin / Guru</string>
+    <string name="btn_unlock">Buka Kunci</string>
+    <string name="btn_cancel">Batal</string>
+    <string name="wrong_admin_pin">PIN Admin Salah!</string>
+</resources>

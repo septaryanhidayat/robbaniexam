@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Robbani Primary Brand Colors -->
+    <color name="robbani_red">#D32F2F</color>
+    <color name="robbani_red_dark">#B71C1C</color>
+    <color name="robbani_red_light">#FF6659</color>
+
+    <color name="robbani_yellow">#FBC02D</color>
+    <color name="robbani_yellow_dark">#C49000</color>
+    <color name="robbani_green">#388E3C</color>
+    <color name="robbani_blue">#1976D2</color>
+
+    <!-- Neutral Colors -->
+    <color name="bg_light">#F8FAFC</color>
+    <color name="surface_light">#FFFFFF</color>
+    <color name="card_bg">#FFFFFF</color>
+    <color name="text_main">#0F172A</color>
+    <color name="text_sub">#475569</color>
+    <color name="divider">#E2E8F0</color>
+
+    <!-- Status & Warning Colors -->
+    <color name="status_good">#22C55E</color>
+    <color name="status_warning">#F59E0B</color>
+    <color name="status_danger">#EF4444</color>
+
+    <color name="black">#FF000000</color>
+    <color name="white">#FFFFFFFF</color>
+</resources>

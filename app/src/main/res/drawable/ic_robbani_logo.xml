@@ -1,0 +1,68 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="200dp"
+    android:height="120dp"
+    android:viewportWidth="200"
+    android:viewportHeight="120">
+
+    <!-- Red Outer Oval -->
+    <path
+        android:fillColor="#D32F2F"
+        android:pathData="M100,10 C150,10 190,32 190,60 C190,88 150,110 100,110 C50,110 10,88 10,60 C10,32 50,10 100,10 Z" />
+
+    <!-- White Border Line -->
+    <path
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="2"
+        android:pathData="M100,14 C146,14 184,34 184,60 C184,86 146,106 100,106 C54,106 16,86 16,60 C16,34 54,14 100,14 Z" />
+
+    <!-- Text: Sekolah Islam Terpadu -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M42,32 H46 V34 H44 V40 H42 V32 Z M50,32 H54 V34 H52 V36 H54 V38 H52 V40 H50 V32 Z" />
+
+    <!-- Main Text Background Graphic Shape for ROBBANI -->
+    <!-- R (Yellow) -->
+    <path
+        android:fillColor="#FFD54F"
+        android:pathData="M35,50 H46 C50,50 53,53 53,57 C53,60 51,62 48,63 L54,74 H47 L42,64 H39 V74 H35 V50 Z M39,54 V60 H45 C47,60 48,59 48,57 C48,55 47,54 45,54 H39 Z" />
+
+    <!-- O (Blue) -->
+    <path
+        android:fillColor="#29B6F6"
+        android:pathData="M60,62 C60,55 64,50 71,50 C78,50 82,55 82,62 C82,69 78,74 71,74 C64,74 60,69 60,62 Z M65,62 C65,67 67,70 71,70 C75,70 77,67 77,62 C77,57 75,54 71,54 C67,54 65,57 65,62 Z" />
+
+    <!-- B (Green) -->
+    <path
+        android:fillColor="#66BB6A"
+        android:pathData="M90,50 H100 C104,50 107,52 107,55 C107,58 105,60 102,61 C106,62 108,64 108,68 C108,72 104,74 99,74 H90 V50 Z M95,54 V59 H99 C101,59 102,58 102,56 C102,55 101,54 99,54 H95 Z M95,62 V70 H100 C102,70 103,69 103,66 C103,63 102,62 100,62 H95 Z" />
+
+    <!-- B (Purple) -->
+    <path
+        android:fillColor="#AB47BC"
+        android:pathData="M115,50 H125 C129,50 132,52 132,55 C132,58 130,60 127,61 C131,62 133,64 133,68 C133,72 129,74 124,74 H115 V50 Z M120,54 V59 H124 C126,59 127,58 127,56 C127,55 126,54 124,54 H120 Z M120,62 V70 H125 C127,70 128,69 128,66 C128,63 127,62 125,62 H120 Z" />
+
+    <!-- A (White Peak) -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M142,50 L149,74 H144 L142,67 H136 L134,74 H129 L136,50 H142 Z M139,56 L137,63 H141 L139,56 Z" />
+
+    <!-- N (Orange) -->
+    <path
+        android:fillColor="#FFA726"
+        android:pathData="M153,50 H157 L164,65 V50 H168 V74 H164 L157,59 V74 H153 V50 Z" />
+
+    <!-- I (Green Light) -->
+    <path
+        android:fillColor="#9CCC65"
+        android:pathData="M174,50 H178 V74 H174 V50 Z" />
+
+    <!-- Yellow Slogan Banner Curve -->
+    <path
+        android:fillColor="#FFEB3B"
+        android:pathData="M35,85 C70,95 130,95 165,85 C165,85 163,91 161,92 C125,102 75,102 39,92 Z" />
+
+    <!-- Text: Because, Every Child is Unique -->
+    <path
+        android:fillColor="#D32F2F"
+        android:pathData="M45,88 H47 V94 H45 Z M52,88 H56 V90 H54 V92 H56 V94 H52 Z" />
+</vector>
