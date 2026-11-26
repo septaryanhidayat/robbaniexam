@@ -12,6 +12,9 @@
     <link href="css/style.css" rel="stylesheet">
     <!-- QRCode JS Library -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <!-- Firebase Web SDK (Compat) -->
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 </head>
 <body>
 
@@ -22,12 +25,14 @@
                 <i class="fas fa-shield-alt fa-2x text-warning"></i>
                 <div>
                     <span class="fw-bold fs-4 d-block lh-1">Sekolah Islam Terpadu ROBBANI</span>
-                    <span class="brand-subtitle">Robbani Exam • Anti-Cheating Admin & Teacher Portal</span>
+                    <span class="brand-subtitle">Robbani Exam • Portal Admin & Real-Time Monitoring Guru</span>
                 </div>
             </a>
             <div class="ms-auto d-flex align-items-center gap-3">
-                <span class="text-white small d-none d-md-inline"><i class="fas fa-user-circle me-1"></i> Admin / Pengawas Ujian</span>
-                <button class="btn btn-sm btn-outline-light" onclick="location.reload()">
+                <button class="btn btn-sm btn-outline-light" data-bs-toggle="modal" data-bs-target="#modalServerConfig">
+                    <i class="fas fa-server me-1"></i> Status Server / Backend
+                </button>
+                <button class="btn btn-sm btn-light text-dark fw-bold" onclick="location.reload()">
                     <i class="fas fa-sync-alt me-1"></i> Refresh Data
                 </button>
             </div>
@@ -36,27 +41,27 @@
 
     <div class="container-fluid py-4 px-4">
 
-        <!-- Summary Stat Cards -->
+        <!-- Live Dynamic Stat Summary Cards -->
         <div class="row g-3 mb-4">
-            <div class="col-md-3">
-                <div class="card card-custom p-3 border-start border-danger border-4">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div>
-                            <span class="text-muted small">Ujian Aktif</span>
-                            <h3 class="fw-bold mb-0 text-danger">3</h3>
-                        </div>
-                        <i class="fas fa-file-signature fa-2x text-danger opacity-50"></i>
-                    </div>
-                </div>
-            </div>
             <div class="col-md-3">
                 <div class="card card-custom p-3 border-start border-primary border-4">
                     <div class="d-flex justify-content-between align-items-center">
                         <div>
-                            <span class="text-muted small">Siswa Mengerjakan</span>
-                            <h3 class="fw-bold mb-0 text-primary">48</h3>
+                            <span class="text-muted small">Ujian Aktif</span>
+                            <h3 class="fw-bold mb-0 text-primary" id="statActiveExams">0</h3>
                         </div>
-                        <i class="fas fa-user-graduate fa-2x text-primary opacity-50"></i>
+                        <i class="fas fa-file-signature fa-2x text-primary opacity-50"></i>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card card-custom p-3 border-start border-info border-4">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <span class="text-muted small">Siswa Mengerjakan</span>
+                            <h3 class="fw-bold mb-0 text-info" id="statActiveStudents">0</h3>
+                        </div>
+                        <i class="fas fa-user-graduate fa-2x text-info opacity-50"></i>
                     </div>
                 </div>
             </div>
@@ -65,20 +70,20 @@
                     <div class="d-flex justify-content-between align-items-center">
                         <div>
                             <span class="text-muted small">Peringatan Kecurangan</span>
-                            <h3 class="fw-bold mb-0 text-warning">2</h3>
+                            <h3 class="fw-bold mb-0 text-warning" id="statTotalViolations">0</h3>
                         </div>
                         <i class="fas fa-exclamation-triangle fa-2x text-warning opacity-50"></i>
                     </div>
                 </div>
             </div>
             <div class="col-md-3">
-                <div class="card card-custom p-3 border-start border-success border-4">
+                <div class="card card-custom p-3 border-start border-danger border-4">
                     <div class="d-flex justify-content-between align-items-center">
                         <div>
                             <span class="text-muted small">Siswa Terkunci</span>
-                            <h3 class="fw-bold mb-0 text-success">1</h3>
+                            <h3 class="fw-bold mb-0 text-danger" id="statLockedStudents">0</h3>
                         </div>
-                        <i class="fas fa-lock fa-2x text-success opacity-50"></i>
+                        <i class="fas fa-lock fa-2x text-danger opacity-50"></i>
                     </div>
                 </div>
             </div>
@@ -87,7 +92,7 @@
         <!-- Section: Active Exams Management -->
         <div class="d-flex justify-content-between align-items-center mb-3">
             <div>
-                <h4 class="fw-bold mb-0"><i class="fas fa-folder-open text-danger me-2"></i>Daftar Ujian Moodle Aktif</h4>
+                <h4 class="fw-bold mb-0"><i class="fas fa-folder-open text-primary me-2"></i>Daftar Ujian Moodle Aktif</h4>
                 <p class="text-muted small mb-0">Kelola tautan ujian Moodle, Token, dan QR Code untuk kelas siswa</p>
             </div>
             <button class="btn btn-robbani" data-bs-toggle="modal" data-bs-target="#modalCreateExam">
@@ -105,10 +110,10 @@
             <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
                 <div>
                     <h5 class="fw-bold mb-0"><i class="fas fa-desktop text-primary me-2"></i>Live Monitoring Siswa Ujian</h5>
-                    <p class="text-muted small mb-0">Pemantauan status pengerjaan, waktu tersisa, dan deteksi pelanggaran siswa secara langsung</p>
+                    <p class="text-muted small mb-0">Pemantauan status pengerjaan, waktu tersisa, dan deteksi kecurangan siswa secara langsung</p>
                 </div>
                 <div class="d-flex gap-2 align-items-center">
-                    <select id="filterClass" class="form-select form-select-sm style-select" style="width: 150px;">
+                    <select id="filterClass" class="form-select form-select-sm style-select" style="width: 160px;" aria-label="Filter Kelas">
                         <option value="ALL">Semua Kelas</option>
                         <option value="7A">Kelas 7A</option>
                         <option value="7B">Kelas 7B</option>
@@ -116,6 +121,9 @@
                         <option value="9A">Kelas 9A</option>
                         <option value="X IPA">Kelas X IPA</option>
                     </select>
+                    <button class="btn btn-sm btn-outline-primary" onclick="clearFinishedStudents()">
+                        <i class="fas fa-broom me-1"></i> Bersihkan Log Selesai
+                    </button>
                     <button class="btn btn-sm btn-outline-success" onclick="exportReportToCsv()">
                         <i class="fas fa-file-excel me-1"></i> Ekspor CSV
                     </button>
@@ -128,10 +136,10 @@
                         <tr>
                             <th>Nama Siswa</th>
                             <th>Kelas</th>
-                            <th>NIS</th>
+                            <th>Kode Ujian</th>
                             <th>Status Ujian</th>
                             <th class="text-center">Pelanggaran</th>
-                            <th>Catatan Terakhir</th>
+                            <th>Catatan Pelanggaran Terakhir</th>
                             <th>Sisa Waktu</th>
                             <th>Aksi Pengawas</th>
                         </tr>
@@ -149,8 +157,8 @@
     <div class="modal fade" id="modalCreateExam" tabindex="-1">
         <div class="modal-dialog modal-lg">
             <div class="modal-content card-custom">
-                <div class="modal-header bg-danger text-white">
-                    <h5 class="modal-title fw-bold"><i class="fas fa-plus-circle me-2"></i>Buat Ujian Baru (Integrasi Moodle)</h5>
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title fw-bold"><i class="fas fa-plus-circle me-2"></i>Buat Ujian Baru (Integrasi Moodle LMS)</h5>
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                 </div>
                 <form id="formCreateExam">
@@ -175,7 +183,7 @@
                             <div class="col-md-12">
                                 <label class="form-label fw-bold">Link Ujian Moodle LMS Sekolah</label>
                                 <input type="url" id="examMoodleUrl" class="form-control" placeholder="https://elearning.robbani.sch.id/mod/quiz/view.php?id=..." required>
-                                <span class="form-text text-muted">Tempelkan link halaman ujian quiz Moodle sekolah Anda di sini.</span>
+                                <span class="form-text text-muted">Tempelkan link halaman ujian quiz Moodle sekolah Anda di sini. Link ini yang akan dibuka aplikasi siswa.</span>
                             </div>
                             <div class="col-md-6">
                                 <label class="form-label fw-bold">Durasi Ujian (Menit)</label>
@@ -186,7 +194,7 @@
                                 <input type="password" id="examPin" class="form-control" value="123456" maxLength="8" required>
                             </div>
                             <div class="col-md-12">
-                                <label class="form-label fw-bold">Target Kelas Ujian (Bisa Pilih Banyak)</label>
+                                <label class="form-label fw-bold">Target Kelas Ujian</label>
                                 <div id="examClasses" class="d-flex flex-wrap gap-3">
                                     <div class="form-check"><input class="form-check-input" type="checkbox" value="7A" checked> <label class="form-check-label">7A</label></div>
                                     <div class="form-check"><input class="form-check-input" type="checkbox" value="7B" checked> <label class="form-check-label">7B</label></div>
@@ -201,7 +209,7 @@
                     </div>
                     <div class="modal-footer bg-light">
                         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
-                        <button type="submit" class="btn btn-robbani"><i class="fas fa-save me-1"></i> Simpan & Buat Kode</button>
+                        <button type="submit" class="btn btn-robbani"><i class="fas fa-save me-1"></i> Simpan & Buat Kode Ujian</button>
                     </div>
                 </form>
             </div>
@@ -216,7 +224,7 @@
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
-                    <h5 class="fw-bold text-danger" id="qrModalTitle">Ujian Penilaian Akhir Semester</h5>
+                    <h5 class="fw-bold text-primary" id="qrModalTitle">Ujian Moodle Robbani</h5>
                     <p class="text-muted small">Tampilkan di proyektor atau cetak untuk discan siswa di aplikasi Robbani Exam</p>
 
                     <div class="qr-container my-3">
@@ -237,6 +245,31 @@
                     <button class="btn btn-sm btn-primary" onclick="window.print()">
                         <i class="fas fa-print me-1"></i> Cetak / Print QR Code
                     </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Config Server / Firebase -->
+    <div class="modal fade" id="modalServerConfig" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content card-custom">
+                <div class="modal-header bg-dark text-white">
+                    <h5 class="modal-title fw-bold"><i class="fas fa-server me-2"></i>Status Server & Realtime Backend</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <div class="alert alert-info small">
+                        <strong>Panduan Deployment Online:</strong> Upload seluruh isi folder <code>admin-dashboard/</code> ini ke Web Hosting / cPanel / Vercel / Firebase Hosting sekolah Anda (misal: <code>https://exam-admin.robbani.sch.id</code>).
+                    </div>
+
+                    <label class="form-label fw-bold">Firebase Realtime Database URL (Opsional untuk Sinkronisasi Lintas HP)</label>
+                    <input type="url" id="firebaseDbUrl" class="form-control mb-2" placeholder="https://robbani-exam-default-rtdb.firebaseio.com">
+                    <span class="form-text text-muted small">Jika diisi, status siswa dan pelanggaran dari HP siswa di mana saja akan otomatis terhubung ke dashboard ini. Jika kosong, dashboard menggunakan Local Realtime Sync.</span>
+
+                    <div class="mt-3 text-end">
+                        <button class="btn btn-sm btn-primary" onclick="saveFirebaseConfig()">Simpan Pengaturan Server</button>
+                    </div>
                 </div>
             </div>
         </div>
