@@ -14,15 +14,15 @@
 
         <ImageView
             android:id="@+id/imgLogo"
-            android:layout_width="220dp"
-            android:layout_height="140dp"
+            android:layout_width="240dp"
+            android:layout_height="144dp"
             android:contentDescription="@string/school_name"
             android:src="@drawable/ic_robbani_logo" />
 
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginTop="20dp"
+            android:layout_marginTop="24dp"
             android:text="@string/school_name"
             android:textColor="@color/white"
             android:textSize="22sp"
@@ -31,9 +31,9 @@
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginTop="4dp"
+            android:layout_marginTop="6dp"
             android:text="@string/school_motto"
-            android:textColor="#FFEB3B"
+            android:textColor="#F59E0B"
             android:textSize="14sp"
             android:textStyle="italic" />
 
@@ -41,8 +41,8 @@
             android:id="@+id/progressBar"
             android:layout_width="36dp"
             android:layout_height="36dp"
-            android:layout_marginTop="32dp"
-            android:indeterminateTint="@color/white" />
+            android:layout_marginTop="36dp"
+            android:indeterminateTint="@color/robbani_accent_light" />
 
         <TextView
             android:id="@+id/tvStatus"
@@ -50,7 +50,7 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="12dp"
             android:text="Memeriksa Keamanan Perangkat..."
-            android:textColor="#E2E8F0"
+            android:textColor="#94A3B8"
             android:textSize="13sp" />
     </LinearLayout>
 
@@ -60,7 +60,7 @@
         android:layout_alignParentBottom="true"
         android:layout_centerHorizontal="true"
         android:layout_marginBottom="16dp"
-        android:text="Robbani Exam v1.0 • Anti-Cheating Secure Engine"
-        android:textColor="#94A3B8"
+        android:text="Robbani Exam v1.0 • Portal Ujian Anti-Contek"
+        android:textColor="#64748B"
         android:textSize="11sp" />
 </RelativeLayout>

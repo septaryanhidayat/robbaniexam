@@ -1,8 +1,9 @@
 :root {
-    --robbani-red: #D32F2F;
-    --robbani-red-dark: #B71C1C;
-    --robbani-yellow: #FBC02D;
-    --robbani-blue: #1976D2;
+    --robbani-primary: #0F172A;
+    --robbani-secondary: #1E293B;
+    --robbani-blue: #2563EB;
+    --robbani-blue-hover: #1D4ED8;
+    --robbani-yellow: #F59E0B;
     --bg-light: #F8FAFC;
     --text-dark: #0F172A;
     --card-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.01);
@@ -17,10 +18,10 @@ body {
 }
 
 .navbar-brand-custom {
-    background: linear-gradient(135deg, var(--robbani-red), var(--robbani-red-dark));
+    background: linear-gradient(135deg, var(--robbani-primary), var(--robbani-blue));
     color: white !important;
     padding: 1rem 1.5rem;
-    box-shadow: 0 4px 12px rgba(211, 47, 47, 0.2);
+    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.2);
 }
 
 .brand-subtitle {
@@ -42,7 +43,7 @@ body {
 }
 
 .btn-robbani {
-    background: linear-gradient(135deg, var(--robbani-red), var(--robbani-red-dark));
+    background: linear-gradient(135deg, var(--robbani-blue), #1D4ED8);
     color: white;
     font-weight: 600;
     border: none;
@@ -51,7 +52,7 @@ body {
 }
 
 .btn-robbani:hover {
-    background: linear-gradient(135deg, #C62828, #9A0007);
+    background: linear-gradient(135deg, #1D4ED8, #1E40AF);
     color: white;
 }
 
@@ -63,14 +64,14 @@ body {
 }
 
 .badge-exam-code {
-    background-color: #FEF3C7;
-    color: #92400E;
+    background-color: #EFF6FF;
+    color: #1D4ED8;
     font-size: 1.1rem;
     font-weight: 700;
     letter-spacing: 1px;
     padding: 0.4rem 1rem;
     border-radius: 8px;
-    border: 1px dashed #F59E0B;
+    border: 1px dashed #3B82F6;
 }
 
 .qr-container {
