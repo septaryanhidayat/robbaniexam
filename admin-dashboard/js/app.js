@@ -1,18 +1,60 @@
-// Robbani Exam Admin Dashboard Production Logic (With Live Realtime Firebase Sync)
+// Robbani Exam Admin Dashboard Production Logic (With SweetAlert2 & Alarm Sound)
 document.addEventListener("DOMContentLoaded", function () {
 
-    // Firebase Database Configuration (Default Live Public RTDB)
     const defaultFirebaseDbUrl = "https://robbani-exam-live-default-rtdb.firebaseio.com";
     const firebaseDbUrl = localStorage.getItem("robbani_firebase_db_url") || defaultFirebaseDbUrl;
 
-    // Load initial local exams & student statuses
     let exams = JSON.parse(localStorage.getItem("robbani_exams")) || [];
     let studentsStatusMap = {};
+    let alertedViolationsMap = {}; // Tracks student IDs already alerted for max violations
 
     function saveExams() {
         localStorage.setItem("robbani_exams", JSON.stringify(exams));
         updateAllUI();
     }
+
+    // Web Audio API Emergency Siren Alarm Synthesizer
+    window.playAlarmSound = function () {
+        try {
+            const AudioContext = window.AudioContext || window.webkitAudioContext;
+            if (!AudioContext) return;
+            const ctx = new AudioContext();
+
+            // Create oscillating alarm siren (2 tone wail)
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+
+            osc.type = "sawtooth";
+            osc.frequency.setValueAtTime(800, ctx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(1200, ctx.currentTime + 0.3);
+            osc.frequency.exponentialRampToValueAtTime(800, ctx.currentTime + 0.6);
+            osc.frequency.exponentialRampToValueAtTime(1200, ctx.currentTime + 0.9);
+            osc.frequency.exponentialRampToValueAtTime(800, ctx.currentTime + 1.2);
+
+            gain.gain.setValueAtTime(0.3, ctx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 1.5);
+
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+
+            osc.start();
+            osc.stop(ctx.currentTime + 1.5);
+        } catch (e) {
+            console.warn("Audio Context playback error:", e);
+        }
+    };
+
+    window.testAlarmSound = function () {
+        playAlarmSound();
+        if (window.Swal) {
+            Swal.fire({
+                title: '🔔 Tes Alarm Kecurangan',
+                text: 'Suara alarm siren dan notifikasi SweetAlert2 berfungsi dengan baik!',
+                icon: 'info',
+                confirmButtonColor: '#2563eb'
+            });
+        }
+    };
 
     // Initialize Live Firebase Realtime Sync
     try {
@@ -28,12 +70,61 @@ document.addEventListener("DOMContentLoaded", function () {
                 const data = snapshot.val();
                 if (data) {
                     studentsStatusMap = data;
+                    checkViolationsAndTriggerAlerts();
                     updateAllUI();
                 }
             });
         }
     } catch (err) {
         console.warn("Firebase Live Sync Error:", err);
+    }
+
+    // Check if any student reached 3x / max violations and trigger SweetAlert2 & Alarm Sound!
+    function checkViolationsAndTriggerAlerts() {
+        const studentList = Object.values(studentsStatusMap);
+
+        studentList.forEach(s => {
+            const vCount = parseInt(s.violationCount) || 0;
+            const studentId = s.studentId || s.id;
+            const exam = exams.find(e => e.examCode === s.examCode);
+            const maxAllowed = (exam && exam.maxViolations) ? parseInt(exam.maxViolations) : 3;
+
+            // Trigger alarm & alert if violations reached maxAllowed (e.g. 3x) and not alerted yet
+            if (vCount >= maxAllowed && !alertedViolationsMap[studentId]) {
+                alertedViolationsMap[studentId] = true;
+
+                // Play Audio Alarm Siren
+                playAlarmSound();
+
+                // Trigger SweetAlert2 Warning Modal
+                if (window.Swal) {
+                    Swal.fire({
+                        title: '🚨 PERINGATAN KECURANGAN SISWA!',
+                        html: `<div class="text-start p-2">
+                                  <p class="mb-1"><b>Nama Siswa:</b> ${s.studentName || s.name || 'Siswa'}</p>
+                                  <p class="mb-1"><b>Kelas:</b> ${s.className || '-'}</p>
+                                  <p class="mb-1"><b>Kode Ujian:</b> ${s.examCode || '-'}</p>
+                                  <p class="mb-1 text-danger fw-bold"><b>Jumlah Pelanggaran:</b> ${vCount} / ${maxAllowed}</p>
+                                  <p class="mb-0 text-muted"><b>Catatan:</b> ${s.lastViolationReason || 'Memenuhi batas pelanggaran maksimal'}</p>
+                               </div>
+                               <div class="alert alert-danger mt-3 mb-0 small">
+                                  <i class="fas fa-lock me-1"></i> <strong>Layar HP siswa telah TERKUNCI secara otomatis!</strong>
+                               </div>`,
+                        icon: 'warning',
+                        confirmButtonText: '<i class="fas fa-check me-1"></i> Buka Kunci PIN Guru',
+                        showCancelButton: true,
+                        cancelButtonText: 'Tutup Notifikasi',
+                        confirmButtonColor: '#2563eb',
+                        cancelButtonColor: '#64748b',
+                        focusConfirm: false
+                    }).then((result) => {
+                        if (result.isConfirmed) {
+                            resetViolation(studentId);
+                        }
+                    });
+                }
+            }
+        });
     }
 
     // Dynamic Summary Stat Counters Calculation
@@ -43,7 +134,7 @@ document.addEventListener("DOMContentLoaded", function () {
         const activeExamsCount = exams.length;
         const activeStudentsCount = studentList.filter(s => s.status === "SEDANG UJIAN" || (s.status && s.status.startsWith("PERINGATAN"))).length;
         const totalViolationsCount = studentList.reduce((sum, s) => sum + (parseInt(s.violationCount) || 0), 0);
-        const lockedStudentsCount = studentList.filter(s => s.status === "TERKUNCI" || (s.violationCount >= 3)).length;
+        const lockedStudentsCount = studentList.filter(s => s.status === "TERKUNCI" || (parseInt(s.violationCount) >= 3)).length;
 
         document.getElementById("statActiveExams").innerText = activeExamsCount;
         document.getElementById("statActiveStudents").innerText = activeStudentsCount;
@@ -76,7 +167,7 @@ document.addEventListener("DOMContentLoaded", function () {
                     <h5 class="fw-bold mt-2 text-dark">${exam.title}</h5>
                     <p class="text-muted small mb-1"><i class="fas fa-chalkboard-teacher me-1 text-primary"></i> Guru: ${exam.teacherName}</p>
                     <p class="text-muted small mb-1"><i class="fas fa-users me-1 text-primary"></i> Kelas: ${exam.targetClasses.join(", ")}</p>
-                    <p class="text-muted small mb-2"><i class="fas fa-clock me-1 text-primary"></i> Durasi: ${exam.durationMinutes} m | PIN: <strong>${exam.adminPin}</strong></p>
+                    <p class="text-muted small mb-2"><i class="fas fa-clock me-1 text-primary"></i> Durasi: ${exam.durationMinutes} m | Batas Curang: <strong>${exam.maxViolations || 3}x</strong></p>
                     <p class="text-break small text-muted mb-3 bg-light p-2 rounded"><i class="fas fa-link me-1 text-primary"></i> <a href="${exam.moodleUrl}" target="_blank" class="text-decoration-none">${exam.moodleUrl}</a></p>
 
                     <div class="mt-auto d-flex gap-2">
@@ -114,9 +205,12 @@ document.addEventListener("DOMContentLoaded", function () {
 
         tbody.innerHTML = filtered.map(s => {
             const vCount = parseInt(s.violationCount) || 0;
+            const exam = exams.find(e => e.examCode === s.examCode);
+            const maxAllowed = (exam && exam.maxViolations) ? parseInt(exam.maxViolations) : 3;
+
             let badgeClass = "bg-success";
-            if (vCount === 1 || vCount === 2) badgeClass = "bg-warning text-dark";
-            if (vCount >= 3 || s.status === "TERKUNCI") badgeClass = "bg-danger";
+            if (vCount > 0 && vCount < maxAllowed) badgeClass = "bg-warning text-dark";
+            if (vCount >= maxAllowed || s.status === "TERKUNCI") badgeClass = "bg-danger";
 
             return `
                 <tr>
@@ -124,14 +218,14 @@ document.addEventListener("DOMContentLoaded", function () {
                     <td><span class="badge bg-secondary">${s.className || '-'}</span></td>
                     <td><span class="badge bg-light text-dark border">${s.examCode || '-'}</span></td>
                     <td><span class="badge badge-status ${badgeClass}">${s.status || 'AKTIF'}</span></td>
-                    <td class="text-center fw-bold ${vCount > 0 ? 'text-danger' : 'text-success'}">${vCount} / 3</td>
+                    <td class="text-center fw-bold ${vCount > 0 ? 'text-danger' : 'text-success'}">${vCount} / ${maxAllowed}</td>
                     <td class="small text-muted">${s.lastViolationReason || s.lastReason || '-'}</td>
                     <td class="fw-bold text-primary">${s.remainingSeconds ? formatTime(s.remainingSeconds) : 'Aktif'}</td>
                     <td>
-                        <button class="btn btn-sm btn-outline-warning" onclick="resetViolation('${s.studentId}')">
+                        <button class="btn btn-sm btn-outline-warning" onclick="resetViolation('${s.studentId || s.id}')">
                             <i class="fas fa-key me-1"></i> Buka PIN
                         </button>
-                        <button class="btn btn-sm btn-outline-danger" onclick="removeStudentSession('${s.studentId}')">
+                        <button class="btn btn-sm btn-outline-danger" onclick="removeStudentSession('${s.studentId || s.id}')">
                             <i class="fas fa-times"></i>
                         </button>
                     </td>
@@ -165,6 +259,7 @@ document.addEventListener("DOMContentLoaded", function () {
             const moodleUrl = document.getElementById("examMoodleUrl").value.trim();
             const token = document.getElementById("examToken").value.trim();
             const duration = parseInt(document.getElementById("examDuration").value) || 90;
+            const maxViolations = parseInt(document.getElementById("examMaxViolations").value) || 3;
             const adminPin = document.getElementById("examPin").value.trim() || "123456";
 
             const selectedClasses = Array.from(document.querySelectorAll("#examClasses input:checked")).map(cb => cb.value);
@@ -181,8 +276,8 @@ document.addEventListener("DOMContentLoaded", function () {
                 moodleUrl: moodleUrl,
                 token: token,
                 durationMinutes: duration,
-                adminPin: adminPin,
-                maxViolations: 3
+                maxViolations: maxViolations,
+                adminPin: adminPin
             };
 
             exams.unshift(newExam);
@@ -205,6 +300,7 @@ document.addEventListener("DOMContentLoaded", function () {
         document.getElementById("qrModalTitle").innerText = exam.title;
         document.getElementById("qrExamCodeDisplay").innerText = exam.examCode;
         document.getElementById("qrExamPinDisplay").innerText = exam.adminPin;
+        document.getElementById("qrExamMaxViolationsDisplay").innerText = (exam.maxViolations || 3) + "x";
         document.getElementById("qrMoodleUrlDisplay").innerText = exam.moodleUrl;
 
         const qrContainer = document.getElementById("qrCodeCanvas");
@@ -216,6 +312,7 @@ document.addEventListener("DOMContentLoaded", function () {
             moodleUrl: exam.moodleUrl,
             token: exam.token,
             durationMinutes: exam.durationMinutes,
+            maxViolations: exam.maxViolations || 3,
             adminPin: exam.adminPin
         });
 
@@ -240,17 +337,27 @@ document.addEventListener("DOMContentLoaded", function () {
 
     window.resetViolation = function (studentId) {
         if (window.firebase && studentId) {
+            delete alertedViolationsMap[studentId];
             firebase.database().ref(`students/${studentId}`).update({
                 status: "SEDANG UJIAN",
                 violationCount: 0,
                 lastViolationReason: "Buka Kunci PIN Guru"
             });
-            alert("Perintah buka kunci berhasil dikirim ke siswa.");
+            if (window.Swal) {
+                Swal.fire({
+                    title: 'Berhasil Buka Kunci',
+                    text: 'Perintah buka kunci berhasil dikirim ke HP siswa.',
+                    icon: 'success',
+                    timer: 2000,
+                    showConfirmButton: false
+                });
+            }
         }
     };
 
     window.removeStudentSession = function (studentId) {
         if (window.firebase && studentId) {
+            delete alertedViolationsMap[studentId];
             firebase.database().ref(`students/${studentId}`).remove();
         }
     };
@@ -260,6 +367,7 @@ document.addEventListener("DOMContentLoaded", function () {
             const studentList = Object.values(studentsStatusMap);
             studentList.forEach(s => {
                 if (s.status === "SELESAI") {
+                    delete alertedViolationsMap[s.studentId];
                     firebase.database().ref(`students/${s.studentId}`).remove();
                 }
             });
