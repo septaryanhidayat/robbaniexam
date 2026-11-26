@@ -3,7 +3,6 @@ package com.ryan.robbaniexam.data.repository
 import com.google.gson.Gson
 import com.ryan.robbaniexam.data.model.ExamSession
 import com.ryan.robbaniexam.data.model.LiveStudentStatus
-import com.ryan.robbaniexam.data.model.StudentInfo
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -14,8 +13,8 @@ object ExamRepository {
     private val gson = Gson()
     private val cachedSessions = mutableMapOf<String, ExamSession>()
 
-    // Default Public Live Firebase Realtime DB Endpoint for instant real-time student monitoring
-    var firebaseDbUrl: String = "https://robbani-exam-live-default-rtdb.firebaseio.com"
+    // User's exact Firebase Realtime Database URL
+    var firebaseDbUrl: String = "https://robbaniexam-default-rtdb.firebaseio.com"
 
     private val httpClient = OkHttpClient.Builder()
         .connectTimeout(5, TimeUnit.SECONDS)
@@ -45,6 +44,7 @@ object ExamRepository {
     fun getExamSessionByInput(input: String): ExamSession {
         val cleanInput = input.trim()
 
+        // 1. Direct URL check
         if (cleanInput.startsWith("http://", ignoreCase = true) || cleanInput.startsWith("https://", ignoreCase = true)) {
             val session = ExamSession(
                 examCode = "LINK-" + System.currentTimeMillis().toString().takeLast(4),
@@ -57,11 +57,13 @@ object ExamRepository {
             return session
         }
 
+        // 2. Check cached/registered sessions
         val cached = cachedSessions[cleanInput.uppercase()]
         if (cached != null) {
             return cached
         }
 
+        // 3. Fallback: URL if contains dot, otherwise default URL
         val formattedUrl = if (cleanInput.contains(".")) {
             if (!cleanInput.startsWith("http")) "https://$cleanInput" else cleanInput
         } else {
@@ -78,7 +80,7 @@ object ExamRepository {
     }
 
     /**
-     * Sends student status & violations live to Firebase Realtime Database / Admin Dashboard
+     * Sends student status & violations live to User's Firebase Realtime Database
      */
     fun pushLiveStudentStatus(status: LiveStudentStatus) {
         Thread {
@@ -86,16 +88,17 @@ object ExamRepository {
                 val jsonPayload = gson.toJson(status)
                 val body = jsonPayload.toRequestBody("application/json; charset=utf-8".toMediaType())
 
-                // Clean URL format
                 val baseUrl = if (firebaseDbUrl.endsWith("/")) firebaseDbUrl.dropLast(1) else firebaseDbUrl
-                val targetUrl = "$baseUrl/students/${status.studentId}.json"
+                val cleanStudentId = status.studentId.replace(Regex("[^a-zA-Z0-9_-]"), "_")
+                val targetUrl = "$baseUrl/students/$cleanStudentId.json"
 
                 val request = Request.Builder()
                     .url(targetUrl)
                     .put(body)
                     .build()
 
-                httpClient.newCall(request).execute().close()
+                val response = httpClient.newCall(request).execute()
+                response.close()
             } catch (e: Exception) {
                 e.printStackTrace()
             }

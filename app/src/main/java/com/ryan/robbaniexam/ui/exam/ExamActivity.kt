@@ -1,11 +1,12 @@
 package com.ryan.robbaniexam.ui.exam
 
 import android.annotation.SuppressLint
-import android.content.Intent
 import android.graphics.Bitmap
 import android.os.Build
 import android.os.Bundle
 import android.os.CountDownTimer
+import android.os.Handler
+import android.os.Looper
 import android.view.KeyEvent
 import android.view.View
 import android.view.WindowManager
@@ -41,6 +42,7 @@ class ExamActivity : AppCompatActivity(), ViolationListener {
     private var countDownTimer: CountDownTimer? = null
     private var isLegalExit: Boolean = false
     private var formattedRemainingTime: String = "00:00:00"
+    private val mainHandler = Handler(Looper.getMainLooper())
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -77,7 +79,6 @@ class ExamActivity : AppCompatActivity(), ViolationListener {
         setupWebView()
         startExamTimer(examSession.durationMinutes)
 
-        // Push initial status to live Dashboard Admin
         reportStatusToDashboard("SEDANG UJIAN", 0, "Ujian Dimulai")
 
         binding.btnExitExam.setOnClickListener {
@@ -208,13 +209,13 @@ class ExamActivity : AppCompatActivity(), ViolationListener {
     }
 
     /**
-     * Intercept Home Button / Recent Apps Gesture -> Immediately re-launch ExamActivity onto screen!
+     * Intercept Home / Recents Button / Unpin Gesture -> Immediately re-lock & re-order to front!
      */
     override fun onUserLeaveHint() {
         super.onUserLeaveHint()
         if (!isLegalExit) {
             if (!securityManager.isExamLocked) {
-                securityManager.recordViolation(ViolationType.APP_SWITCHED, "Menekan Tombol Home / Recent Apps")
+                securityManager.recordViolation(ViolationType.APP_SWITCHED, "Percobaan Keluar / Home / Recent Apps")
             }
             securityManager.reorderExamToFront()
         }
@@ -224,6 +225,16 @@ class ExamActivity : AppCompatActivity(), ViolationListener {
         super.onPause()
         if (!isLegalExit) {
             securityManager.reorderExamToFront()
+            mainHandler.postDelayed({
+                if (!isLegalExit) securityManager.reorderExamToFront()
+            }, 300)
+        }
+    }
+
+    override fun onStop() {
+        super.onStop()
+        if (!isLegalExit) {
+            securityManager.reorderExamToFront()
         }
     }
 
@@ -231,6 +242,7 @@ class ExamActivity : AppCompatActivity(), ViolationListener {
         super.onMultiWindowModeChanged(isInMultiWindowMode)
         if (isInMultiWindowMode && !isLegalExit) {
             securityManager.recordViolation(ViolationType.SPLIT_SCREEN_DETECTED)
+            securityManager.reorderExamToFront()
         }
     }
 

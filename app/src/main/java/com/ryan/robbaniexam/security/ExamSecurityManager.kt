@@ -4,7 +4,8 @@ import android.app.Activity
 import android.app.ActivityManager
 import android.content.Context
 import android.content.Intent
-import android.os.Build
+import android.os.Handler
+import android.os.Looper
 import android.provider.Settings
 import android.view.WindowManager
 import androidx.core.view.WindowCompat
@@ -22,6 +23,8 @@ class ExamSecurityManager(
 
     var isExamLocked: Boolean = false
         private set
+
+    private val mainHandler = Handler(Looper.getMainLooper())
 
     fun applyExamSecurity() {
         enableScreenshotProtection()
@@ -70,10 +73,11 @@ class ExamSecurityManager(
     }
 
     /**
-     * Re-brings the Exam Activity immediately to the top if user presses Home or Recents
+     * Re-brings the Exam Activity immediately to the top if user tries to unpin or press Home/Recents
      */
     fun reorderExamToFront() {
         try {
+            startLockTaskIfSupported()
             val am = activity.getSystemService(Context.ACTIVITY_SERVICE) as? ActivityManager
             am?.moveTaskToFront(activity.taskId, ActivityManager.MOVE_TASK_WITH_HOME)
 
@@ -83,6 +87,16 @@ class ExamSecurityManager(
                         Intent.FLAG_ACTIVITY_SINGLE_TOP
             }
             activity.startActivity(intent)
+
+            // Re-enforce lock task after brief delay to counteract unpin gesture
+            mainHandler.postDelayed({
+                try {
+                    activity.startLockTask()
+                    enableImmersiveMode()
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                }
+            }, 200)
         } catch (e: Exception) {
             e.printStackTrace()
         }
