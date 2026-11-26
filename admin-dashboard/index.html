@@ -3,292 +3,497 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dashboard Admin & Guru - Robbani Exam</title>
-    <!-- Bootstrap 5 CSS -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
-    <!-- FontAwesome Icons -->
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" rel="stylesheet">
-    <!-- SweetAlert2 CSS & JS -->
+    <title>Robbani Exam • Portal Admin & Pengawas Ujian</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-    <!-- Custom CSS -->
-    <link href="css/style.css" rel="stylesheet">
-    <!-- QRCode JS Library -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-    <!-- Firebase Web SDK (Compat) -->
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+
+    <link href="css/style.css" rel="stylesheet">
 </head>
 <body>
 
-    <!-- Header / Navbar -->
-    <nav class="navbar navbar-expand-lg navbar-dark navbar-brand-custom">
-        <div class="container-fluid">
-            <a class="navbar-brand d-flex align-items-center gap-2" href="#">
-                <i class="fas fa-shield-alt fa-2x text-warning"></i>
-                <div>
-                    <span class="fw-bold fs-4 d-block lh-1">Sekolah Islam Terpadu ROBBANI</span>
-                    <span class="brand-subtitle">Robbani Exam • Portal Admin & Real-Time Monitoring Guru</span>
+    <!-- Login Gate Overlay -->
+    <div id="loginGate" class="login-gate d-none">
+        <div class="login-card">
+            <div class="text-center mb-4">
+                <div class="login-logo-box mx-auto mb-3">
+                    <i class="fas fa-shield-halved"></i>
                 </div>
-            </a>
-            <div class="ms-auto d-flex align-items-center gap-3">
-                <button class="btn btn-sm btn-outline-light" onclick="testAlarmSound()">
-                    <i class="fas fa-volume-up me-1"></i> Tes Alarm Sound
+                <h2 class="h4 fw-800 mb-1">Portal Admin & Guru</h2>
+                <p class="text-muted small mb-0">Sekolah Islam Terpadu ROBBANI • Robbani Exam v2.0</p>
+            </div>
+
+            <form id="formLogin">
+                <div class="mb-3">
+                    <label class="form-label small fw-bold">Username</label>
+                    <input type="text" id="loginUsername" class="form-control form-control-modern" placeholder="admin atau username guru" required>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label small fw-bold">Password</label>
+                    <input type="password" id="loginPassword" class="form-control form-control-modern" placeholder="Masukkan password" required>
+                </div>
+                <button type="submit" class="btn btn-primary w-100 rounded-pill py-2 fw-bold">
+                    <i class="fas fa-right-to-bracket me-1"></i> Masuk Dashboard
                 </button>
-                <button class="btn btn-sm btn-outline-light" data-bs-toggle="modal" data-bs-target="#modalServerConfig">
-                    <i class="fas fa-server me-1"></i> Status Server / Backend
-                </button>
-                <button class="btn btn-sm btn-light text-dark fw-bold" onclick="location.reload()">
-                    <i class="fas fa-sync-alt me-1"></i> Refresh Data
-                </button>
+            </form>
+
+            <div class="mt-3 p-3 rounded-4 bg-light border small text-muted">
+                <div class="fw-bold text-dark mb-1"><i class="fas fa-circle-info text-primary me-1"></i>Info Akses Default:</div>
+                <div>Admin Utama: <code class="fw-bold">admin</code> / <code class="fw-bold">robbani2026</code></div>
+                <div class="mt-1">Guru login menggunakan username &amp; password yang dibuatkan Admin (hanya dapat mengakses kelas yang diberi izin).</div>
             </div>
         </div>
-    </nav>
-
-    <div class="container-fluid py-4 px-4">
-
-        <!-- Live Dynamic Stat Summary Cards -->
-        <div class="row g-3 mb-4">
-            <div class="col-md-3">
-                <div class="card card-custom p-3 border-start border-primary border-4">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div>
-                            <span class="text-muted small">Ujian Aktif</span>
-                            <h3 class="fw-bold mb-0 text-primary" id="statActiveExams">0</h3>
-                        </div>
-                        <i class="fas fa-file-signature fa-2x text-primary opacity-50"></i>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-3">
-                <div class="card card-custom p-3 border-start border-info border-4">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div>
-                            <span class="text-muted small">Siswa Mengerjakan</span>
-                            <h3 class="fw-bold mb-0 text-info" id="statActiveStudents">0</h3>
-                        </div>
-                        <i class="fas fa-user-graduate fa-2x text-info opacity-50"></i>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-3">
-                <div class="card card-custom p-3 border-start border-warning border-4">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div>
-                            <span class="text-muted small">Peringatan Kecurangan</span>
-                            <h3 class="fw-bold mb-0 text-warning" id="statTotalViolations">0</h3>
-                        </div>
-                        <i class="fas fa-exclamation-triangle fa-2x text-warning opacity-50"></i>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-3">
-                <div class="card card-custom p-3 border-start border-danger border-4">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div>
-                            <span class="text-muted small">Siswa Terkunci</span>
-                            <h3 class="fw-bold mb-0 text-danger" id="statLockedStudents">0</h3>
-                        </div>
-                        <i class="fas fa-lock fa-2x text-danger opacity-50"></i>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Section: Active Exams Management -->
-        <div class="d-flex justify-content-between align-items-center mb-3">
-            <div>
-                <h4 class="fw-bold mb-0"><i class="fas fa-folder-open text-primary me-2"></i>Daftar Ujian Moodle Aktif</h4>
-                <p class="text-muted small mb-0">Kelola tautan ujian Moodle, Token, Durasi, dan Batas Pelanggaran</p>
-            </div>
-            <button class="btn btn-robbani" data-bs-toggle="modal" data-bs-target="#modalCreateExam">
-                <i class="fas fa-plus-circle me-1"></i> Buat Ujian Baru
-            </button>
-        </div>
-
-        <!-- Exams Grid -->
-        <div class="row" id="examsContainer">
-            <!-- Dynamic Exam Cards JS -->
-        </div>
-
-        <!-- Section: Live Real-Time Student Monitoring -->
-        <div class="card card-custom p-4 mt-4">
-            <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
-                <div>
-                    <h5 class="fw-bold mb-0"><i class="fas fa-desktop text-primary me-2"></i>Live Monitoring Siswa Ujian</h5>
-                    <p class="text-muted small mb-0">Pemantauan status pengerjaan, sisa waktu, dan alarm notifikasi kecurangan</p>
-                </div>
-                <div class="d-flex gap-2 align-items-center">
-                    <select id="filterClass" class="form-select form-select-sm style-select" style="width: 160px;" aria-label="Filter Kelas">
-                        <option value="ALL">Semua Kelas</option>
-                        <option value="7A">Kelas 7A</option>
-                        <option value="7B">Kelas 7B</option>
-                        <option value="8A">Kelas 8A</option>
-                        <option value="9A">Kelas 9A</option>
-                        <option value="X IPA">Kelas X IPA</option>
-                    </select>
-                    <button class="btn btn-sm btn-outline-primary" onclick="clearFinishedStudents()">
-                        <i class="fas fa-broom me-1"></i> Bersihkan Log Selesai
-                    </button>
-                    <button class="btn btn-sm btn-outline-success" onclick="exportReportToCsv()">
-                        <i class="fas fa-file-excel me-1"></i> Ekspor CSV
-                    </button>
-                </div>
-            </div>
-
-            <div class="table-responsive">
-                <table class="table table-hover align-middle">
-                    <thead class="table-light">
-                        <tr>
-                            <th>Nama Siswa</th>
-                            <th>Kelas</th>
-                            <th>Kode Ujian</th>
-                            <th>Status Ujian</th>
-                            <th class="text-center">Pelanggaran</th>
-                            <th>Catatan Pelanggaran Terakhir</th>
-                            <th>Sisa Waktu</th>
-                            <th>Aksi Pengawas</th>
-                        </tr>
-                    </thead>
-                    <tbody id="studentsTableBody">
-                        <!-- Dynamic Student Rows JS -->
-                    </tbody>
-                </table>
-            </div>
-        </div>
-
     </div>
 
-    <!-- Modal: Buat Ujian Baru -->
+    <!-- App Shell -->
+    <div id="dashboardShell" class="d-none">
+        <!-- Modern Top Bar -->
+        <header class="topbar sticky-top">
+            <div class="container-fluid px-4 py-3 d-flex flex-wrap align-items-center justify-content-between gap-3">
+                <div class="d-flex align-items-center gap-3">
+                    <div class="brand-icon-box">
+                        <i class="fas fa-shield-halved"></i>
+                    </div>
+                    <div>
+                        <div class="d-flex align-items-center gap-2">
+                            <h1 class="h5 mb-0 fw-800 text-white tracking-tight">Robbani Exam</h1>
+                            <span class="badge-version">v2.0 Pro</span>
+                        </div>
+                        <p class="mb-0 brand-sub" id="topbarUserSubtitle">Sekolah Islam Terpadu ROBBANI</p>
+                    </div>
+                </div>
+
+                <div class="d-flex flex-wrap align-items-center gap-2">
+                    <div id="firebaseConnBadge" class="conn-pill conn-connecting">
+                        <span class="conn-dot"></span>
+                        <span id="firebaseConnText">Menghubungkan...</span>
+                    </div>
+
+                    <button id="btnToggleMute" class="btn btn-glass btn-sm" onclick="toggleAlarmMute()">
+                        <i class="fas fa-bell me-1"></i> <span id="muteLabel">Alarm Aktif</span>
+                    </button>
+
+                    <button class="btn btn-glass btn-sm" onclick="testAlarmSound()">
+                        <i class="fas fa-volume-high me-1"></i> Tes Alarm
+                    </button>
+
+                    <button id="btnServerConfig" class="btn btn-glass btn-sm" data-bs-toggle="modal" data-bs-target="#modalServerConfig">
+                        <i class="fas fa-database me-1"></i> Server
+                    </button>
+
+                    <button class="btn btn-cta btn-sm" data-bs-toggle="modal" data-bs-target="#modalCreateExam" onclick="prepareCreateExamModal()">
+                        <i class="fas fa-plus me-1"></i> Buat Ujian
+                    </button>
+
+                    <button class="btn btn-glass btn-sm text-warning" onclick="logoutDashboard()" title="Keluar Akun">
+                        <i class="fas fa-right-from-bracket me-1"></i> Keluar
+                    </button>
+                </div>
+            </div>
+
+            <!-- Role Navigation Bar -->
+            <div class="container-fluid px-4 pb-2 d-flex align-items-center justify-content-between flex-wrap gap-2">
+                <div class="d-flex gap-2">
+                    <button id="navTabMonitoring" class="nav-pill-btn active" onclick="switchTab('monitoring')">
+                        <i class="fas fa-desktop me-1"></i> Monitoring &amp; Ujian
+                    </button>
+                    <button id="navTabAccess" class="nav-pill-btn d-none" onclick="switchTab('access')">
+                        <i class="fas fa-users-gear me-1"></i> Kelola Kelas &amp; Guru
+                    </button>
+                </div>
+                <div id="allowedClassesBanner" class="small text-white-50"></div>
+            </div>
+        </header>
+
+        <!-- TAB 1: MONITORING & UJIAN -->
+        <main id="panelMonitoring" class="container-fluid px-4 py-4 main-wrapper">
+
+            <!-- Bento KPI Cards -->
+            <section class="row g-3 mb-4">
+                <div class="col-6 col-xl-3">
+                    <div class="kpi-card">
+                        <div class="kpi-icon kpi-blue"><i class="fas fa-file-signature"></i></div>
+                        <div>
+                            <span class="kpi-label">Sesi Ujian</span>
+                            <h2 class="kpi-value" id="statActiveExams">0</h2>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-6 col-xl-3">
+                    <div class="kpi-card">
+                        <div class="kpi-icon kpi-teal"><i class="fas fa-user-graduate"></i></div>
+                        <div>
+                            <span class="kpi-label">Siswa Sedang Ujian</span>
+                            <h2 class="kpi-value" id="statActiveStudents">0</h2>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-6 col-xl-3">
+                    <div class="kpi-card">
+                        <div class="kpi-icon kpi-amber"><i class="fas fa-triangle-exclamation"></i></div>
+                        <div>
+                            <span class="kpi-label">Total Pelanggaran</span>
+                            <h2 class="kpi-value" id="statTotalViolations">0</h2>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-6 col-xl-3">
+                    <div class="kpi-card">
+                        <div class="kpi-icon kpi-red"><i class="fas fa-lock"></i></div>
+                        <div>
+                            <span class="kpi-label">Layar Terkunci</span>
+                            <h2 class="kpi-value text-danger" id="statLockedStudents">0</h2>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Global Broadcast Bar -->
+            <section id="broadcastSection" class="panel-card p-3 mb-4">
+                <div class="d-flex flex-wrap align-items-center gap-3">
+                    <div class="d-flex align-items-center gap-2 text-primary fw-bold small text-nowrap">
+                        <i class="fas fa-bullhorn"></i> Pengumuman Beranda Siswa:
+                    </div>
+                    <div class="flex-grow-1" style="min-width: 240px;">
+                        <input type="text" id="inputBroadcastMessage" class="form-control form-control-modern"
+                            placeholder="Tulis pengumuman yang tampil di beranda aplikasi siswa...">
+                    </div>
+                    <div class="d-flex gap-2">
+                        <button class="btn btn-primary btn-sm px-3 rounded-pill fw-semibold" onclick="publishBroadcast()">
+                            <i class="fas fa-paper-plane me-1"></i> Tayangkan
+                        </button>
+                        <button class="btn btn-outline-secondary btn-sm px-3 rounded-pill" onclick="clearBroadcast()">
+                            Hapus
+                        </button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Active Exams Section -->
+            <section class="mb-4">
+                <div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2">
+                    <div>
+                        <h2 class="h5 fw-800 mb-0">Daftar Ujian Moodle</h2>
+                        <p class="text-muted small mb-0" id="examSectionSubtitle">Menampilkan ujian sesuai hak akses kelas Anda</p>
+                    </div>
+                </div>
+                <div class="row g-3" id="examsContainer"></div>
+            </section>
+
+            <!-- Live Student Monitoring Panel -->
+            <section class="panel-card p-4">
+                <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-3">
+                    <div>
+                        <h2 class="h5 fw-800 mb-0">
+                            <span class="live-pulse me-2"></span>Live Monitoring Peserta Ujian
+                        </h2>
+                        <p class="text-muted small mb-0">Terisolasi sesuai kelas akses • Buka kunci jarak jauh &amp; kirim notifikasi instan</p>
+                    </div>
+
+                    <div class="d-flex flex-wrap gap-2 align-items-center">
+                        <div class="input-group input-group-sm" style="width: 210px;">
+                            <span class="input-group-text bg-white border-end-0"><i class="fas fa-search text-muted"></i></span>
+                            <input type="text" id="searchStudent" class="form-control border-start-0" placeholder="Cari nama / NIS / kode...">
+                        </div>
+
+                        <select id="filterClass" class="form-select form-select-sm" style="width: 145px;" aria-label="Filter Kelas">
+                            <option value="ALL">Semua Kelas</option>
+                        </select>
+
+                        <select id="filterStatus" class="form-select form-select-sm" style="width: 150px;" aria-label="Filter Status">
+                            <option value="ALL">Semua Status</option>
+                            <option value="ACTIVE">Sedang Ujian</option>
+                            <option value="WARNING">Peringatan</option>
+                            <option value="LOCKED">Terkunci</option>
+                            <option value="FINISHED">Selesai</option>
+                        </select>
+
+                        <button class="btn btn-sm btn-outline-primary rounded-pill px-3" onclick="clearFinishedStudents()">
+                            <i class="fas fa-broom me-1"></i> Bersihkan Selesai
+                        </button>
+
+                        <button class="btn btn-sm btn-success rounded-pill px-3" onclick="exportReportToCsv()">
+                            <i class="fas fa-file-csv me-1"></i> Ekspor CSV
+                        </button>
+                    </div>
+                </div>
+
+                <div class="table-responsive">
+                    <table class="table table-modern align-middle mb-0">
+                        <thead>
+                            <tr>
+                                <th>Peserta</th>
+                                <th>Kelas</th>
+                                <th>Kode</th>
+                                <th>Status</th>
+                                <th class="text-center">Pelanggaran</th>
+                                <th>Catatan Terakhir</th>
+                                <th>Sisa Waktu</th>
+                                <th class="text-end">Kontrol Pengawas</th>
+                            </tr>
+                        </thead>
+                        <tbody id="studentsTableBody"></tbody>
+                    </table>
+                </div>
+            </section>
+        </main>
+
+        <!-- TAB 2: ADMIN-ONLY KELOLA KELAS & GURU -->
+        <main id="panelAccessControl" class="container-fluid px-4 py-4 main-wrapper d-none">
+            <div class="row g-4">
+                <!-- Master Kelas -->
+                <div class="col-lg-5">
+                    <div class="panel-card p-4 h-100">
+                        <h2 class="h5 fw-800 mb-1"><i class="fas fa-chalkboard text-primary me-2"></i>Data Kelas Sekolah</h2>
+                        <p class="text-muted small mb-3">Tambah kelas baru (otomatis muncul di aplikasi siswa &amp; pilihan akses guru)</p>
+
+                        <form id="formAddClass" class="row g-2 mb-4">
+                            <div class="col-7">
+                                <input type="text" id="newClassName" class="form-control form-control-modern" placeholder="Nama Kelas (misal: 7D, Tahfidz 1)" required>
+                            </div>
+                            <div class="col-5">
+                                <div class="d-flex gap-2">
+                                    <select id="newClassLevel" class="form-select form-control-modern">
+                                        <option value="SMP">SMP</option>
+                                        <option value="SMA">SMA</option>
+                                        <option value="Lainnya">Lainnya</option>
+                                    </select>
+                                    <button type="submit" class="btn btn-primary rounded-pill px-3 fw-semibold">
+                                        <i class="fas fa-plus"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </form>
+
+                        <div id="classesListContainer" class="d-flex flex-wrap gap-2"></div>
+                    </div>
+                </div>
+
+                <!-- Master Guru & Hak Akses -->
+                <div class="col-lg-7">
+                    <div class="panel-card p-4 h-100">
+                        <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+                            <div>
+                                <h2 class="h5 fw-800 mb-1"><i class="fas fa-user-shield text-primary me-2"></i>Akun Guru &amp; Hak Akses Kelas</h2>
+                                <p class="text-muted small mb-0">1 guru hanya bisa memantau dan mengelola kelas yang dicentang untuknya</p>
+                            </div>
+                            <button class="btn btn-primary btn-sm rounded-pill px-3 fw-semibold" onclick="prepareTeacherModal()">
+                                <i class="fas fa-user-plus me-1"></i> Tambah Guru
+                            </button>
+                        </div>
+
+                        <div class="table-responsive">
+                            <table class="table table-modern align-middle mb-0">
+                                <thead>
+                                    <tr>
+                                        <th>Guru</th>
+                                        <th>Username</th>
+                                        <th>Kelas Diizinkan</th>
+                                        <th class="text-end">Aksi</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="teachersTableBody"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Modal: Create / Edit Exam -->
     <div class="modal fade" id="modalCreateExam" tabindex="-1">
-        <div class="modal-dialog modal-lg">
-            <div class="modal-content card-custom">
-                <div class="modal-header bg-primary text-white">
-                    <h5 class="modal-title fw-bold"><i class="fas fa-plus-circle me-2"></i>Buat Ujian Baru (Integrasi Moodle LMS)</h5>
+        <div class="modal-dialog modal-lg modal-dialog-centered">
+            <div class="modal-content modal-modern">
+                <div class="modal-header modal-header-modern">
+                    <div>
+                        <h5 class="modal-title fw-bold mb-0" id="examModalTitle">
+                            <i class="fas fa-plus-circle me-2"></i>Buat Sesi Ujian Moodle
+                        </h5>
+                        <small class="text-white-50">Pilih kelas sesuai hak akses Anda</small>
+                    </div>
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                 </div>
                 <form id="formCreateExam">
+                    <input type="hidden" id="editingExamCode" value="">
                     <div class="modal-body p-4">
                         <div class="row g-3">
                             <div class="col-md-8">
-                                <label class="form-label fw-bold">Judul Ujian / Penilaian</label>
-                                <input type="text" id="examTitle" class="form-control" placeholder="Contoh: PAS Ganjil Matematika 2025" required>
+                                <label class="form-label fw-semibold small">Judul Ujian / Penilaian</label>
+                                <input type="text" id="examTitle" class="form-control form-control-modern" placeholder="Contoh: PAS Ganjil Matematika 2026" required>
                             </div>
                             <div class="col-md-4">
-                                <label class="form-label fw-bold">Mata Pelajaran</label>
-                                <input type="text" id="examSubject" class="form-control" placeholder="Contoh: Matematika" required>
+                                <label class="form-label fw-semibold small">Mata Pelajaran</label>
+                                <input type="text" id="examSubject" class="form-control form-control-modern" placeholder="Contoh: Matematika" required>
                             </div>
                             <div class="col-md-6">
-                                <label class="form-label fw-bold">Nama Guru / Pengawas</label>
-                                <input type="text" id="examTeacher" class="form-control" placeholder="Contoh: Ustadz Ahmad, S.Pd" required>
+                                <label class="form-label fw-semibold small">Nama Guru / Pengawas</label>
+                                <input type="text" id="examTeacher" class="form-control form-control-modern" required>
                             </div>
                             <div class="col-md-6">
-                                <label class="form-label fw-bold">Token Ujian (Moodle / App)</label>
-                                <input type="text" id="examToken" class="form-control" placeholder="Contoh: ROBBANI2025" required>
+                                <label class="form-label fw-semibold small">Token Moodle (Opsional)</label>
+                                <input type="text" id="examToken" class="form-control form-control-modern" placeholder="Contoh: ROBBANI2026">
                             </div>
                             <div class="col-md-12">
-                                <label class="form-label fw-bold">Link Ujian Moodle LMS Sekolah</label>
-                                <input type="url" id="examMoodleUrl" class="form-control" placeholder="https://elearning.robbani.sch.id/mod/quiz/view.php?id=..." required>
-                                <span class="form-text text-muted">Tempelkan link halaman ujian quiz Moodle sekolah Anda di sini. Link ini yang akan dibuka aplikasi siswa.</span>
+                                <label class="form-label fw-semibold small">Link Ujian Moodle LMS Sekolah</label>
+                                <input type="url" id="examMoodleUrl" class="form-control form-control-modern" placeholder="https://elearning.robbani.sch.id/mod/quiz/view.php?id=..." required>
                             </div>
                             <div class="col-md-4">
-                                <label class="form-label fw-bold">Durasi Ujian (Menit)</label>
-                                <input type="number" id="examDuration" class="form-control" value="90" required>
+                                <label class="form-label fw-semibold small">Durasi (Menit)</label>
+                                <input type="number" id="examDuration" class="form-control form-control-modern" value="90" min="5" max="360" required>
                             </div>
                             <div class="col-md-4">
-                                <label class="form-label fw-bold">Batas Pelanggaran (Terkunci)</label>
-                                <input type="number" id="examMaxViolations" class="form-control" value="3" min="1" max="10" required>
-                                <span class="form-text text-muted">Berapa kali curang sebelum HP terkunci & alarm berbunyi.</span>
+                                <label class="form-label fw-semibold small">Batas Pelanggaran</label>
+                                <input type="number" id="examMaxViolations" class="form-control form-control-modern" value="3" min="1" max="10" required>
                             </div>
                             <div class="col-md-4">
-                                <label class="form-label fw-bold">PIN Keluar Admin / Guru</label>
-                                <input type="password" id="examPin" class="form-control" value="123456" maxLength="8" required>
+                                <label class="form-label fw-semibold small">PIN Keluar Guru</label>
+                                <input type="text" id="examPin" class="form-control form-control-modern font-mono" value="123456" maxlength="8" required>
                             </div>
                             <div class="col-md-12">
-                                <label class="form-label fw-bold">Target Kelas Ujian</label>
-                                <div id="examClasses" class="d-flex flex-wrap gap-3">
-                                    <div class="form-check"><input class="form-check-input" type="checkbox" value="7A" checked> <label class="form-check-label">7A</label></div>
-                                    <div class="form-check"><input class="form-check-input" type="checkbox" value="7B" checked> <label class="form-check-label">7B</label></div>
-                                    <div class="form-check"><input class="form-check-input" type="checkbox" value="8A"> <label class="form-check-label">8A</label></div>
-                                    <div class="form-check"><input class="form-check-input" type="checkbox" value="8B"> <label class="form-check-label">8B</label></div>
-                                    <div class="form-check"><input class="form-check-input" type="checkbox" value="9A"> <label class="form-check-label">9A</label></div>
-                                    <div class="form-check"><input class="form-check-input" type="checkbox" value="X IPA"> <label class="form-check-label">X IPA</label></div>
-                                    <div class="form-check"><input class="form-check-input" type="checkbox" value="XI IPS"> <label class="form-check-label">XI IPS</label></div>
-                                </div>
+                                <label class="form-label fw-semibold small">Target Kelas (Hanya kelas akses Anda)</label>
+                                <div id="examClasses" class="d-flex flex-wrap gap-2"></div>
                             </div>
                         </div>
                     </div>
-                    <div class="modal-footer bg-light">
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
-                        <button type="submit" class="btn btn-robbani"><i class="fas fa-save me-1"></i> Simpan & Buat Kode Ujian</button>
+                    <div class="modal-footer border-0 bg-light px-4 py-3">
+                        <button type="button" class="btn btn-light rounded-pill px-4" data-bs-dismiss="modal">Batal</button>
+                        <button type="submit" class="btn btn-primary rounded-pill px-4 fw-semibold">
+                            <i class="fas fa-save me-1"></i> Simpan &amp; Sinkron ke Firebase
+                        </button>
                     </div>
                 </form>
             </div>
         </div>
     </div>
 
-    <!-- Modal: QR Code & Kode Ujian Display -->
+    <!-- Modal: Add / Edit Teacher -->
+    <div class="modal fade" id="modalTeacher" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content modal-modern">
+                <div class="modal-header modal-header-modern">
+                    <h5 class="modal-title fw-bold mb-0" id="teacherModalTitle"><i class="fas fa-user-plus me-2"></i>Tambah Guru</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <form id="formTeacher">
+                    <input type="hidden" id="editingTeacherId" value="">
+                    <div class="modal-body p-4">
+                        <div class="mb-3">
+                            <label class="form-label small fw-bold">Nama Lengkap Guru</label>
+                            <input type="text" id="teacherFullName" class="form-control form-control-modern" placeholder="Ustadz Ahmad, S.Pd" required>
+                        </div>
+                        <div class="row g-2 mb-3">
+                            <div class="col-6">
+                                <label class="form-label small fw-bold">Username Login</label>
+                                <input type="text" id="teacherUsername" class="form-control form-control-modern" placeholder="ahmad7a" required>
+                            </div>
+                            <div class="col-6">
+                                <label class="form-label small fw-bold">Password</label>
+                                <input type="text" id="teacherPassword" class="form-control form-control-modern font-mono" placeholder="guru123" required>
+                            </div>
+                        </div>
+                        <div>
+                            <label class="form-label small fw-bold">Berikan Akses Kelas:</label>
+                            <div id="teacherClassesCheckboxes" class="d-flex flex-wrap gap-2"></div>
+                        </div>
+                    </div>
+                    <div class="modal-footer border-0 bg-light">
+                        <button type="button" class="btn btn-light rounded-pill px-3" data-bs-dismiss="modal">Batal</button>
+                        <button type="submit" class="btn btn-primary rounded-pill px-4 fw-semibold">Simpan Guru</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: QR & Printable Card -->
     <div class="modal fade" id="modalQrDisplay" tabindex="-1">
         <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content card-custom text-center p-4" id="printableQrArea">
+            <div class="modal-content modal-modern text-center p-4" id="printableQrArea">
                 <div class="modal-header border-0 pb-0">
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
-                    <h5 class="fw-bold text-primary" id="qrModalTitle">Ujian Moodle Robbani</h5>
-                    <p class="text-muted small">Tampilkan di proyektor atau cetak untuk discan siswa di aplikasi Robbani Exam</p>
+                    <span class="badge bg-primary-subtle text-primary rounded-pill px-3 py-1 mb-2 fw-semibold">KARTU AKSES UJIAN SISWA</span>
+                    <h5 class="fw-800 text-dark mb-1" id="qrModalTitle">Ujian Moodle Robbani</h5>
+                    <p class="text-muted small">Scan QR Code ini di aplikasi Robbani Exam atau ketik kode ujian di bawah</p>
 
                     <div class="qr-container my-3">
                         <div id="qrCodeCanvas" class="d-flex justify-content-center"></div>
                     </div>
 
                     <div class="my-3">
-                        <span class="text-muted small d-block mb-1">KODE UJIAN / TOKEN SISWA:</span>
-                        <div class="badge-exam-code display-6 d-inline-block" id="qrExamCodeDisplay">ROBBANI7A</div>
+                        <div class="code-pill-lg d-inline-flex align-items-center gap-2" onclick="copyCurrentQrCode()" style="cursor:pointer;" title="Klik untuk salin kode">
+                            <span id="qrExamCodeDisplay">RBN1234</span>
+                            <i class="fas fa-copy fs-6 opacity-75"></i>
+                        </div>
                     </div>
 
-                    <div class="p-2 bg-light rounded text-start small mt-3">
-                        <div><i class="fas fa-key text-danger me-1"></i> PIN Guru Exit: <strong id="qrExamPinDisplay">123456</strong></div>
-                        <div><i class="fas fa-exclamation-triangle text-warning me-1"></i> Batas Kecurangan: <strong id="qrExamMaxViolationsDisplay">3x</strong></div>
-                        <div><i class="fas fa-link text-primary me-1"></i> URL Moodle: <span id="qrMoodleUrlDisplay" class="text-break">https://elearning.robbani.sch.id</span></div>
+                    <div class="p-3 bg-light rounded-4 text-start small mt-3 border">
+                        <div class="mb-1"><i class="fas fa-key text-danger me-2"></i>PIN Guru: <strong id="qrExamPinDisplay" class="font-mono">123456</strong></div>
+                        <div class="mb-1"><i class="fas fa-shield-halved text-warning me-2"></i>Batas Pelanggaran: <strong id="qrExamMaxViolationsDisplay">3x</strong></div>
+                        <div><i class="fas fa-link text-primary me-2"></i>URL Moodle: <span id="qrMoodleUrlDisplay" class="text-break text-muted"></span></div>
                     </div>
                 </div>
-                <div class="modal-footer border-0 pt-0 justify-content-center">
-                    <button class="btn btn-sm btn-primary" onclick="window.print()">
-                        <i class="fas fa-print me-1"></i> Cetak / Print QR Code
+                <div class="modal-footer border-0 pt-0 justify-content-center gap-2">
+                    <button class="btn btn-outline-secondary btn-sm rounded-pill px-3" onclick="copyCurrentQrCode()">
+                        <i class="fas fa-copy me-1"></i> Salin Kode
+                    </button>
+                    <button class="btn btn-primary btn-sm rounded-pill px-4" onclick="window.print()">
+                        <i class="fas fa-print me-1"></i> Cetak Kartu QR
                     </button>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Modal: Config Server / Firebase -->
+    <!-- Modal: Violation Audit Logs -->
+    <div class="modal fade" id="modalViolationLogs" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content modal-modern">
+                <div class="modal-header modal-header-modern">
+                    <h5 class="modal-title fw-bold mb-0"><i class="fas fa-clock-rotate-left me-2"></i>Riwayat Pelanggaran Siswa</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body p-4" id="violationLogsBody"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Server / Firebase & Admin Password Config -->
     <div class="modal fade" id="modalServerConfig" tabindex="-1">
-        <div class="modal-dialog">
-            <div class="modal-content card-custom">
-                <div class="modal-header bg-dark text-white">
-                    <h5 class="modal-title fw-bold"><i class="fas fa-server me-2"></i>Status Server & Realtime Backend</h5>
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content modal-modern">
+                <div class="modal-header modal-header-modern">
+                    <h5 class="modal-title fw-bold mb-0"><i class="fas fa-database me-2"></i>Server Firebase &amp; Password Admin</h5>
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body p-4">
-                    <div class="alert alert-info small">
-                        <strong>Panduan Deployment Online:</strong> Upload seluruh isi folder <code>admin-dashboard/</code> ini ke Web Hosting / cPanel / Vercel / Firebase Hosting sekolah Anda (misal: <code>https://exam-admin.robbani.sch.id</code>).
-                    </div>
+                    <label class="form-label fw-semibold small">Firebase Realtime Database URL</label>
+                    <input type="url" id="firebaseDbUrl" class="form-control form-control-modern font-mono mb-3"
+                        placeholder="https://robbaniexam-default-rtdb.firebaseio.com">
 
-                    <label class="form-label fw-bold">Firebase Realtime Database URL</label>
-                    <input type="url" id="firebaseDbUrl" class="form-control mb-2" placeholder="https://robbani-exam-live-default-rtdb.firebaseio.com">
-                    <span class="form-text text-muted small">Status siswa dan pelanggaran dari HP siswa di mana saja akan otomatis terhubung ke dashboard ini secara live.</span>
+                    <label class="form-label fw-semibold small">Ganti Password Admin Utama (Opsional)</label>
+                    <input type="password" id="newAdminPassword" class="form-control form-control-modern mb-3" placeholder="Kosongkan jika tidak ingin mengganti">
 
-                    <div class="mt-3 text-end">
-                        <button class="btn btn-sm btn-primary" onclick="saveFirebaseConfig()">Simpan Pengaturan Server</button>
+                    <div class="d-flex justify-content-between align-items-center">
+                        <button class="btn btn-outline-secondary btn-sm rounded-pill px-3" onclick="resetDefaultFirebase()">Reset URL Default</button>
+                        <button class="btn btn-primary btn-sm rounded-pill px-4 fw-semibold" onclick="saveServerAndAdminConfig()">Simpan Perubahan</button>
                     </div>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Bootstrap 5 JS Bundle -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
-    <!-- App JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <script src="js/app.js"></script>
 </body>
 </html>

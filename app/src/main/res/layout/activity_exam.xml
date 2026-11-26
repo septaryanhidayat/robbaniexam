@@ -3,18 +3,18 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/black">
+    android:background="@color/robbani_primary_dark">
 
-    <!-- Top Secure Header Bar -->
+    <!-- Modern Top Proctoring Header Bar -->
     <LinearLayout
         android:id="@+id/headerBar"
         android:layout_width="match_parent"
-        android:layout_height="60dp"
+        android:layout_height="64dp"
         android:layout_alignParentTop="true"
         android:background="@drawable/bg_header_gradient"
         android:gravity="center_vertical"
         android:orientation="horizontal"
-        android:paddingStart="12dp"
+        android:paddingStart="14dp"
         android:paddingEnd="12dp">
 
         <LinearLayout
@@ -29,7 +29,7 @@
                 android:layout_height="wrap_content"
                 android:ellipsize="end"
                 android:maxLines="1"
-                android:text="Ujian Penilaian Akhir Semester"
+                android:text="Ujian Moodle Robbani"
                 android:textColor="@color/white"
                 android:textSize="14sp"
                 android:textStyle="bold" />
@@ -38,49 +38,118 @@
                 android:id="@+id/tvStudentDetail"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Ahmad (7A)"
-                android:textColor="#FFD54F"
-                android:textSize="12sp" />
+                android:ellipsize="end"
+                android:maxLines="1"
+                android:text="Siswa (7A)"
+                android:textColor="#FDE68A"
+                android:textSize="11.5sp" />
         </LinearLayout>
 
-        <!-- Violation Badge -->
+        <!-- Violation Pill -->
         <TextView
             android:id="@+id/tvViolationBadge"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginEnd="8dp"
-            android:background="@drawable/bg_rounded_card"
-            android:backgroundTint="#EF4444"
-            android:paddingStart="8dp"
-            android:paddingTop="4dp"
-            android:paddingEnd="8dp"
-            android:paddingBottom="4dp"
-            android:text="Peringatan: 0/3"
-            android:textColor="@color/white"
-            android:textSize="11sp"
+            android:layout_marginEnd="6dp"
+            android:background="@drawable/bg_pill_glass"
+            android:backgroundTint="#33EF4444"
+            android:paddingStart="10dp"
+            android:paddingTop="5dp"
+            android:paddingEnd="10dp"
+            android:paddingBottom="5dp"
+            android:text="0/3"
+            android:textColor="#FECACA"
+            android:textSize="11.5sp"
             android:textStyle="bold" />
 
-        <!-- Timer View -->
+        <!-- Timer Pill -->
         <TextView
             android:id="@+id/tvTimer"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginEnd="12dp"
+            android:layout_marginEnd="6dp"
+            android:background="@drawable/bg_pill_glass"
+            android:paddingStart="10dp"
+            android:paddingTop="5dp"
+            android:paddingEnd="10dp"
+            android:paddingBottom="5dp"
             android:text="01:30:00"
             android:textColor="@color/white"
-            android:textSize="15sp"
+            android:textSize="13sp"
             android:textStyle="bold" />
 
-        <!-- Exit Button -->
+        <!-- Refresh Moodle WebView -->
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnRefreshWeb"
+            style="?attr/materialIconButtonStyle"
+            android:layout_width="36dp"
+            android:layout_height="36dp"
+            android:layout_marginEnd="6dp"
+            android:backgroundTint="#22FFFFFF"
+            android:contentDescription="Muat Ulang Halaman"
+            app:cornerRadius="18dp"
+            app:icon="@drawable/ic_refresh"
+            app:iconSize="18dp"
+            app:iconTint="@color/white" />
+
+        <!-- Admin PIN Exit Button -->
         <com.google.android.material.button.MaterialButton
             android:id="@+id/btnExitExam"
             style="?attr/materialIconButtonStyle"
-            android:layout_width="40dp"
-            android:layout_height="40dp"
-            android:backgroundTint="#B71C1C"
-            app:cornerRadius="20dp"
+            android:layout_width="36dp"
+            android:layout_height="36dp"
+            android:backgroundTint="@color/robbani_red"
+            android:contentDescription="Keluar Ujian"
+            app:cornerRadius="18dp"
             app:icon="@drawable/ic_lock"
+            app:iconSize="18dp"
             app:iconTint="@color/white" />
+    </LinearLayout>
+
+    <!-- WebView Load Progress Bar -->
+    <ProgressBar
+        android:id="@+id/progressWebView"
+        style="?android:attr/progressBarStyleHorizontal"
+        android:layout_width="match_parent"
+        android:layout_height="3dp"
+        android:layout_below="@id/headerBar"
+        android:max="100"
+        android:progressTint="#38BDF8"
+        android:visibility="gone" />
+
+    <!-- Teacher Remote Message / Offline Banner -->
+    <LinearLayout
+        android:id="@+id/bannerProctorNotice"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_below="@id/progressWebView"
+        android:background="#FEF3C7"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingStart="14dp"
+        android:paddingTop="8dp"
+        android:paddingEnd="14dp"
+        android:paddingBottom="8dp"
+        android:visibility="gone">
+
+        <TextView
+            android:id="@+id/tvProctorNotice"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:textColor="#92400E"
+            android:textSize="12sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/btnDismissNotice"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:padding="4dp"
+            android:text="Tutup"
+            android:textColor="#B45309"
+            android:textSize="12sp"
+            android:textStyle="bold" />
     </LinearLayout>
 
     <!-- Secure Exam WebView -->
@@ -88,56 +157,142 @@
         android:id="@+id/webViewExam"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:layout_below="@id/headerBar" />
+        android:layout_below="@id/bannerProctorNotice"
+        android:background="@color/white" />
 
-    <!-- Overlay Screen when Exam is Locked -->
+    <!-- Network / Web Error Overlay -->
+    <LinearLayout
+        android:id="@+id/layoutWebError"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:layout_below="@id/bannerProctorNotice"
+        android:background="@color/bg_light"
+        android:gravity="center"
+        android:orientation="vertical"
+        android:padding="28dp"
+        android:visibility="gone">
+
+        <ImageView
+            android:layout_width="64dp"
+            android:layout_height="64dp"
+            android:contentDescription="Error"
+            android:src="@drawable/ic_warning"
+            app:tint="@color/status_warning" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="14dp"
+            android:text="Halaman Ujian Tidak Dapat Dimuat"
+            android:textColor="@color/text_main"
+            android:textSize="17sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/tvWebErrorDetail"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:gravity="center"
+            android:text="Periksa koneksi internet Anda lalu tekan Muat Ulang."
+            android:textColor="@color/text_sub"
+            android:textSize="13sp" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnRetryWeb"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="18dp"
+            android:backgroundTint="@color/robbani_accent"
+            android:text="Muat Ulang Halaman"
+            android:textAllCaps="false"
+            android:textColor="@color/white"
+            app:cornerRadius="12dp"
+            app:icon="@drawable/ic_refresh" />
+    </LinearLayout>
+
+    <!-- Locked Exam Overlay (With Alarm Visual & Remote Unlock Support) -->
     <LinearLayout
         android:id="@+id/layoutLockedScreen"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:layout_below="@id/headerBar"
-        android:background="#FA000000"
+        android:background="#F50A1628"
         android:gravity="center"
         android:orientation="vertical"
-        android:padding="32dp"
+        android:padding="28dp"
         android:visibility="gone">
 
-        <ImageView
-            android:layout_width="80dp"
-            android:layout_height="80dp"
-            android:contentDescription="Locked Warning Icon"
-            android:src="@drawable/ic_warning"
-            app:tint="#EF4444" />
-
-        <TextView
-            android:layout_width="wrap_content"
+        <com.google.android.material.card.MaterialCardView
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="16dp"
-            android:text="LAYAR TERKUNCI!"
-            android:textColor="#EF4444"
-            android:textSize="22sp"
-            android:textStyle="bold" />
+            app:cardBackgroundColor="#1E293B"
+            app:cardCornerRadius="24dp"
+            app:cardElevation="12dp"
+            app:strokeColor="#EF4444"
+            app:strokeWidth="2dp">
 
-        <TextView
-            android:id="@+id/tvLockReason"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:gravity="center"
-            android:text="Batas Pelanggaran Maksimal Terlampaui. Minta Pengawas / Guru untuk Buka Kunci dengan PIN Admin."
-            android:textColor="@color/white"
-            android:textSize="14sp" />
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center"
+                android:orientation="vertical"
+                android:padding="24dp">
 
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/btnUnlockAdminPin"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="24dp"
-            android:backgroundTint="@color/robbani_red"
-            android:text="Buka Kunci PIN Guru"
-            android:textColor="@color/white"
-            app:cornerRadius="12dp"
-            app:icon="@drawable/ic_lock" />
+                <ImageView
+                    android:layout_width="72dp"
+                    android:layout_height="72dp"
+                    android:contentDescription="Locked Warning Icon"
+                    android:src="@drawable/ic_warning"
+                    app:tint="#EF4444" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="14dp"
+                    android:text="LAYAR UJIAN TERKUNCI"
+                    android:textColor="#FCA5A5"
+                    android:textSize="20sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:id="@+id/tvLockReason"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="10dp"
+                    android:gravity="center"
+                    android:text="Batas pelanggaran terlampaui. Alarm berbunyi dan laporan telah dikirim ke pengawas."
+                    android:textColor="#E2E8F0"
+                    android:textSize="13.5sp" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="12dp"
+                    android:background="@drawable/bg_pill_glass"
+                    android:paddingStart="12dp"
+                    android:paddingTop="5dp"
+                    android:paddingEnd="12dp"
+                    android:paddingBottom="5dp"
+                    android:text="Menunggu buka kunci dari Pengawas / PIN..."
+                    android:textColor="#FCD34D"
+                    android:textSize="11.5sp" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnUnlockAdminPin"
+                    android:layout_width="match_parent"
+                    android:layout_height="52dp"
+                    android:layout_marginTop="20dp"
+                    android:backgroundTint="@color/robbani_red"
+                    android:text="Buka Kunci dengan PIN Guru"
+                    android:textAllCaps="false"
+                    android:textColor="@color/white"
+                    android:textStyle="bold"
+                    app:cornerRadius="14dp"
+                    app:icon="@drawable/ic_lock"
+                    app:iconGravity="textStart" />
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
     </LinearLayout>
 
 </RelativeLayout>

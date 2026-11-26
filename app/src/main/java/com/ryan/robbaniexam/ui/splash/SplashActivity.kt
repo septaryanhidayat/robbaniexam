@@ -5,8 +5,9 @@ import android.content.Intent
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
-import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.ContextCompat
+import com.ryan.robbaniexam.R
 import com.ryan.robbaniexam.databinding.ActivitySplashBinding
 import com.ryan.robbaniexam.security.ExamSecurityManager
 import com.ryan.robbaniexam.ui.main.MainActivity
@@ -25,15 +26,18 @@ class SplashActivity : AppCompatActivity() {
         val hasDevOptions = securityManager.checkDeveloperOptions(this)
 
         if (hasDevOptions) {
-            binding.tvStatus.text = "Peringatan: Opsi Pengembang / USB Debugging Aktif!"
-            binding.tvStatus.setTextColor(getColor(android.R.color.holo_red_light))
+            binding.tvStatus.text = "Peringatan: Opsi Pengembang / USB Debugging aktif!"
+            binding.tvStatus.setTextColor(ContextCompat.getColor(this, R.color.robbani_yellow))
         } else {
-            binding.tvStatus.text = "Sistem Keamanan Ujian Siap..."
+            binding.tvStatus.text = "Sistem keamanan ujian siap..."
+            binding.tvStatus.setTextColor(ContextCompat.getColor(this, R.color.robbani_green))
         }
 
         Handler(Looper.getMainLooper()).postDelayed({
-            startActivity(Intent(this, MainActivity::class.java))
-            finish()
-        }, 1500)
+            if (!isFinishing && !isDestroyed) {
+                startActivity(Intent(this, MainActivity::class.java))
+                finish()
+            }
+        }, 1200)
     }
 }

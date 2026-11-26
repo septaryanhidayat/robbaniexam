@@ -1,20 +1,25 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Robbani Modern Primary Colors (Deep Slate Navy & Royal Blue) -->
-    <color name="robbani_primary">#1E293B</color>
-    <color name="robbani_primary_dark">#0F172A</color>
+    <!-- Robbani Modern Palette (Deep Navy, Cobalt Blue & Emerald Teal) -->
+    <color name="robbani_primary">#13233A</color>
+    <color name="robbani_primary_dark">#0A1628</color>
     <color name="robbani_accent">#2563EB</color>
     <color name="robbani_accent_light">#3B82F6</color>
+    <color name="robbani_accent_soft">#EFF6FF</color>
     <color name="robbani_indigo">#4F46E5</color>
     <color name="robbani_teal">#0D9488</color>
+    <color name="robbani_emerald">#059669</color>
+    <color name="robbani_emerald_soft">#ECFDF5</color>
 
     <!-- Branding Accents -->
-    <color name="robbani_red">#D32F2F</color>
+    <color name="robbani_red">#DC2626</color>
+    <color name="robbani_red_soft">#FEE2E2</color>
     <color name="robbani_yellow">#F59E0B</color>
+    <color name="robbani_yellow_soft">#FEF3C7</color>
     <color name="robbani_green">#10B981</color>
 
     <!-- Neutral Surface Colors -->
-    <color name="bg_light">#F8FAFC</color>
+    <color name="bg_light">#F1F5F9</color>
     <color name="surface_light">#FFFFFF</color>
     <color name="card_bg">#FFFFFF</color>
     <color name="text_main">#0F172A</color>
@@ -22,9 +27,9 @@
     <color name="divider">#E2E8F0</color>
 
     <!-- Status & Warning Colors -->
-    <color name="status_good">#10B981</color>
-    <color name="status_warning">#F59E0B</color>
-    <color name="status_danger">#EF4444</color>
+    <color name="status_good">#059669</color>
+    <color name="status_warning">#D97706</color>
+    <color name="status_danger">#DC2626</color>
 
     <color name="black">#FF000000</color>
     <color name="white">#FFFFFFFF</color>

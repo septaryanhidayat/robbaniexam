@@ -4,10 +4,14 @@ data class LiveStudentStatus(
     val studentId: String = "",
     val studentName: String = "",
     val className: String = "",
+    val nis: String = "",
     val examCode: String = "",
-    val status: String = "EXAM_IN_PROGRESS",
+    val status: String = "SEDANG UJIAN",
     val violationCount: Int = 0,
     val lastViolationReason: String = "",
     val remainingSeconds: Int = 0,
-    val lastUpdated: Long = System.currentTimeMillis()
+    val lastUpdated: Long = System.currentTimeMillis(),
+    val violationLogs: List<ViolationLog> = emptyList(),
+    val remoteCommand: String = "",
+    val remoteMessage: String = ""
 )

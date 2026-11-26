@@ -3,41 +3,58 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
+    android:background="@color/surface_light"
     android:orientation="vertical"
     android:padding="24dp">
 
-    <ImageView
-        android:layout_width="48dp"
-        android:layout_height="48dp"
+    <com.google.android.material.card.MaterialCardView
+        android:layout_width="56dp"
+        android:layout_height="56dp"
         android:layout_gravity="center"
-        android:contentDescription="Lock Icon"
-        android:src="@drawable/ic_lock"
-        app:tint="@color/robbani_red" />
+        app:cardBackgroundColor="@color/robbani_red_soft"
+        app:cardCornerRadius="28dp"
+        app:cardElevation="0dp">
+
+        <ImageView
+            android:layout_width="28dp"
+            android:layout_height="28dp"
+            android:layout_gravity="center"
+            android:contentDescription="Lock Icon"
+            android:src="@drawable/ic_lock"
+            app:tint="@color/robbani_red" />
+    </com.google.android.material.card.MaterialCardView>
 
     <TextView
+        android:id="@+id/tvPinDialogTitle"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_gravity="center"
-        android:layout_marginTop="12dp"
+        android:layout_marginTop="14dp"
         android:text="@string/admin_pin_title"
         android:textColor="@color/text_main"
         android:textSize="18sp"
         android:textStyle="bold" />
 
     <TextView
+        android:id="@+id/tvPinDialogSubtitle"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_gravity="center"
         android:layout_marginTop="4dp"
-        android:layout_marginBottom="16dp"
-        android:text="Minta Guru/Pengawas untuk memasukkan PIN"
+        android:layout_marginBottom="18dp"
+        android:gravity="center"
+        android:text="Minta Pengawas / Guru memasukkan PIN untuk melanjutkan"
         android:textColor="@color/text_sub"
-        android:textSize="13sp" />
+        android:textSize="12.5sp" />
 
     <com.google.android.material.textfield.TextInputLayout
         style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        app:boxCornerRadiusBottomEnd="14dp"
+        app:boxCornerRadiusBottomStart="14dp"
+        app:boxCornerRadiusTopEnd="14dp"
+        app:boxCornerRadiusTopStart="14dp"
         app:passwordToggleEnabled="true">
 
         <com.google.android.material.textfield.TextInputEditText
@@ -46,7 +63,8 @@
             android:layout_height="wrap_content"
             android:hint="@string/admin_pin_hint"
             android:inputType="numberPassword"
-            android:maxLength="8" />
+            android:maxLength="8"
+            android:textColor="@color/text_main" />
     </com.google.android.material.textfield.TextInputLayout>
 
     <LinearLayout
@@ -58,20 +76,25 @@
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/btnCancelPin"
-            style="@style/Widget.MaterialComponents.Button.TextButton"
+            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
             android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
+            android:layout_height="46dp"
             android:text="@string/btn_cancel"
-            android:textColor="@color/text_sub" />
+            android:textAllCaps="false"
+            android:textColor="@color/text_sub"
+            app:cornerRadius="12dp"
+            app:strokeColor="@color/divider" />
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/btnConfirmPin"
             android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginStart="8dp"
+            android:layout_height="46dp"
+            android:layout_marginStart="10dp"
             android:backgroundTint="@color/robbani_red"
             android:text="@string/btn_unlock"
+            android:textAllCaps="false"
             android:textColor="@color/white"
-            app:cornerRadius="8dp" />
+            android:textStyle="bold"
+            app:cornerRadius="12dp" />
     </LinearLayout>
 </LinearLayout>

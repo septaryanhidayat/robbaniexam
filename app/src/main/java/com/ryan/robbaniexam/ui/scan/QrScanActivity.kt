@@ -7,16 +7,10 @@ import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
-import androidx.camera.core.CameraSelector
-import androidx.camera.core.ImageAnalysis
-import androidx.camera.core.ImageProxy
-import androidx.camera.core.Preview
-import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.core.content.ContextCompat
 import com.journeyapps.barcodescanner.ScanContract
 import com.journeyapps.barcodescanner.ScanOptions
 import com.ryan.robbaniexam.databinding.ActivityQrScanBinding
-import java.util.concurrent.Executors
 
 class QrScanActivity : AppCompatActivity() {
 
@@ -61,7 +55,7 @@ class QrScanActivity : AppCompatActivity() {
     private fun launchScanner() {
         val options = ScanOptions().apply {
             setDesiredBarcodeFormats(ScanOptions.QR_CODE)
-            setPrompt("Arahkan kamera ke QR Code Ujian Guru")
+            setPrompt("Arahkan kamera ke QR Code Ujian di Dashboard Guru")
             setCameraId(0)
             setBeepEnabled(true)
             setBarcodeImageEnabled(false)

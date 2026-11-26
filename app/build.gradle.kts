@@ -10,15 +10,31 @@ android {
         applicationId = "com.ryan.robbaniexam"
         minSdk = 24
         targetSdk = 35
-        versionCode = 1
-        versionName = "1.0"
+        versionCode = 2
+        versionName = "2.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+    }
+
+    signingConfigs {
+        create("release") {
+            val keystoreFile = file("robbani-release.jks")
+            if (keystoreFile.exists()) {
+                storeFile = keystoreFile
+                storePassword = System.getenv("ROBBANI_KEYSTORE_PASS") ?: "robbani2026"
+                keyAlias = System.getenv("ROBBANI_KEY_ALIAS") ?: "robbani"
+                keyPassword = System.getenv("ROBBANI_KEY_PASS") ?: "robbani2026"
+            }
+        }
     }
 
     buildTypes {
         release {
             isMinifyEnabled = false
+            val releaseSign = signingConfigs.findByName("release")
+            if (releaseSign?.storeFile?.exists() == true) {
+                signingConfig = releaseSign
+            }
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
