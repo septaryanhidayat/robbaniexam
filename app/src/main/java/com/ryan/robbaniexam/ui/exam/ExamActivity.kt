@@ -3,10 +3,12 @@ package com.ryan.robbaniexam.ui.exam
 import android.annotation.SuppressLint
 import android.content.Intent
 import android.graphics.Bitmap
+import android.os.Build
 import android.os.Bundle
 import android.os.CountDownTimer
 import android.view.KeyEvent
 import android.view.View
+import android.view.WindowManager
 import android.webkit.WebChromeClient
 import android.webkit.WebResourceRequest
 import android.webkit.WebSettings
@@ -20,7 +22,9 @@ import com.google.android.material.button.MaterialButton
 import com.google.gson.Gson
 import com.ryan.robbaniexam.R
 import com.ryan.robbaniexam.data.model.ExamSession
+import com.ryan.robbaniexam.data.model.LiveStudentStatus
 import com.ryan.robbaniexam.data.model.StudentInfo
+import com.ryan.robbaniexam.data.repository.ExamRepository
 import com.ryan.robbaniexam.databinding.ActivityExamBinding
 import com.ryan.robbaniexam.security.ExamSecurityManager
 import com.ryan.robbaniexam.security.ViolationListener
@@ -36,11 +40,20 @@ class ExamActivity : AppCompatActivity(), ViolationListener {
 
     private var countDownTimer: CountDownTimer? = null
     private var isLegalExit: Boolean = false
+    private var formattedRemainingTime: String = "00:00:00"
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivityExamBinding.inflate(layoutInflater)
         setContentView(binding.root)
+
+        window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
+            setShowWhenLocked(true)
+        } else {
+            @Suppress("DEPRECATION")
+            window.addFlags(WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED)
+        }
 
         val studentJson = intent.getStringExtra("EXTRA_STUDENT_JSON") ?: ""
         val sessionJson = intent.getStringExtra("EXTRA_SESSION_JSON") ?: ""
@@ -57,13 +70,15 @@ class ExamActivity : AppCompatActivity(), ViolationListener {
             ExamSession(moodleUrl = "https://elearning.robbani.sch.id")
         }
 
-        // Initialize Security Manager
         securityManager = ExamSecurityManager(this, maxViolations = examSession.maxViolations, listener = this)
         securityManager.applyExamSecurity()
 
         setupHeaderUi()
         setupWebView()
         startExamTimer(examSession.durationMinutes)
+
+        // Push initial status to live Dashboard Admin
+        reportStatusToDashboard("SEDANG UJIAN", 0, "Ujian Dimulai")
 
         binding.btnExitExam.setOnClickListener {
             showAdminPinDialog(isExitAction = true)
@@ -86,7 +101,6 @@ class ExamActivity : AppCompatActivity(), ViolationListener {
             settings.apply {
                 javaScriptEnabled = true
                 domStorageEnabled = true
-                databaseEnabled = true
                 useWideViewPort = true
                 loadWithOverviewMode = true
                 setSupportZoom(true)
@@ -97,16 +111,14 @@ class ExamActivity : AppCompatActivity(), ViolationListener {
                 userAgentString = "RobbaniExamBrowser/1.0 (Android Anti-Cheat Secure Environment)"
             }
 
-            // Disable Long Click & Copy-Paste Selection
             setOnLongClickListener { true }
             isHapticFeedbackEnabled = false
 
             webViewClient = object : WebViewClient() {
                 override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
                     val url = request?.url?.toString() ?: ""
-                    // Prevent leaving Moodle domain
                     if (url.startsWith("http://") || url.startsWith("https://")) {
-                        return false // Allow loading inside WebView
+                        return false
                     }
                     return true
                 }
@@ -124,7 +136,6 @@ class ExamActivity : AppCompatActivity(), ViolationListener {
 
             webChromeClient = WebChromeClient()
 
-            // Load Moodle URL
             val targetUrl = if (examSession.moodleUrl.startsWith("http")) examSession.moodleUrl else "https://${examSession.moodleUrl}"
             loadUrl(targetUrl)
         }
@@ -151,11 +162,14 @@ class ExamActivity : AppCompatActivity(), ViolationListener {
                 val hours = (millisUntilFinished / 1000) / 3600
                 val minutes = ((millisUntilFinished / 1000) % 3600) / 60
                 val seconds = (millisUntilFinished / 1000) % 60
-                binding.tvTimer.text = String.format(Locale.getDefault(), "%02d:%02d:%02d", hours, minutes, seconds)
+                formattedRemainingTime = String.format(Locale.getDefault(), "%02d:%02d:%02d", hours, minutes, seconds)
+                binding.tvTimer.text = formattedRemainingTime
             }
 
             override fun onFinish() {
-                binding.tvTimer.text = "00:00:00"
+                formattedRemainingTime = "00:00:00"
+                binding.tvTimer.text = formattedRemainingTime
+                reportStatusToDashboard("SELESAI", securityManager.violationCount, "Waktu Ujian Habis")
                 Toast.makeText(this@ExamActivity, "Waktu Ujian Telah Habis!", Toast.LENGTH_LONG).show()
             }
         }.start()
@@ -165,21 +179,51 @@ class ExamActivity : AppCompatActivity(), ViolationListener {
         binding.tvViolationBadge.text = "Peringatan: $count/${examSession.maxViolations}"
     }
 
+    private fun reportStatusToDashboard(statusText: String, violations: Int, reason: String) {
+        val liveStatus = LiveStudentStatus(
+            studentId = studentInfo.studentId.ifEmpty { "STU-${studentInfo.name.hashCode()}" },
+            studentName = studentInfo.name,
+            className = studentInfo.className,
+            examCode = examSession.examCode,
+            status = statusText,
+            violationCount = violations,
+            lastViolationReason = reason,
+            remainingSeconds = 0,
+            lastUpdated = System.currentTimeMillis()
+        )
+        ExamRepository.pushLiveStudentStatus(liveStatus)
+    }
+
     override fun onViolationDetected(type: ViolationType, message: String, currentViolations: Int, maxViolations: Int) {
         updateViolationBadge(currentViolations)
+        reportStatusToDashboard("PERINGATAN ${currentViolations}x", currentViolations, message)
         Toast.makeText(this, "PERINGATAN ($currentViolations/$maxViolations): $message", Toast.LENGTH_LONG).show()
     }
 
     override fun onMaxViolationsExceeded(type: ViolationType, message: String) {
         updateViolationBadge(examSession.maxViolations)
+        reportStatusToDashboard("TERKUNCI", examSession.maxViolations, message)
         binding.layoutLockedScreen.visibility = View.VISIBLE
         binding.tvLockReason.text = "LAYAR TERKUNCI ($message)\nMinta Pengawas / Guru untuk membuka kunci menggunakan PIN Admin."
     }
 
+    /**
+     * Intercept Home Button / Recent Apps Gesture -> Immediately re-launch ExamActivity onto screen!
+     */
     override fun onUserLeaveHint() {
         super.onUserLeaveHint()
-        if (!isLegalExit && !securityManager.isExamLocked) {
-            securityManager.recordViolation(ViolationType.APP_SWITCHED)
+        if (!isLegalExit) {
+            if (!securityManager.isExamLocked) {
+                securityManager.recordViolation(ViolationType.APP_SWITCHED, "Menekan Tombol Home / Recent Apps")
+            }
+            securityManager.reorderExamToFront()
+        }
+    }
+
+    override fun onPause() {
+        super.onPause()
+        if (!isLegalExit) {
+            securityManager.reorderExamToFront()
         }
     }
 
@@ -194,14 +238,16 @@ class ExamActivity : AppCompatActivity(), ViolationListener {
         super.onWindowFocusChanged(hasFocus)
         if (hasFocus) {
             securityManager.enableImmersiveMode()
-        } else if (!isLegalExit && !securityManager.isExamLocked) {
-            securityManager.recordViolation(ViolationType.APP_SWITCHED, "Aplikasi kehilangan fokus layar.")
+        } else if (!isLegalExit) {
+            securityManager.reorderExamToFront()
+            if (!securityManager.isExamLocked) {
+                securityManager.recordViolation(ViolationType.APP_SWITCHED, "Aplikasi kehilangan fokus layar.")
+            }
         }
     }
 
     override fun onKeyDown(keyCode: Int, event: KeyEvent?): Boolean {
         if (keyCode == KeyEvent.KEYCODE_BACK) {
-            // Block Back Key during exam
             Toast.makeText(this, "Tombol Kembali Dinonaktifkan Saat Ujian!", Toast.LENGTH_SHORT).show()
             return true
         }
@@ -230,12 +276,14 @@ class ExamActivity : AppCompatActivity(), ViolationListener {
                 dialog.dismiss()
                 if (isExitAction) {
                     isLegalExit = true
+                    reportStatusToDashboard("SELESAI", securityManager.violationCount, "Siswa Keluar dengan PIN Guru")
                     securityManager.stopLockTaskIfActive()
                     finish()
                 } else {
                     securityManager.unlockExam()
                     binding.layoutLockedScreen.visibility = View.GONE
                     updateViolationBadge(0)
+                    reportStatusToDashboard("SEDANG UJIAN", 0, "Buka Kunci PIN Guru")
                     Toast.makeText(this, "Ujian Berhasil Dibuka Kunci", Toast.LENGTH_SHORT).show()
                 }
             } else {

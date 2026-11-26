@@ -1,16 +1,16 @@
 package com.ryan.robbaniexam.security
 
 import android.app.Activity
+import android.app.ActivityManager
 import android.content.Context
-import android.content.pm.ApplicationInfo
-import android.content.pm.PackageManager
+import android.content.Intent
 import android.os.Build
 import android.provider.Settings
-import android.view.View
 import android.view.WindowManager
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
+import com.ryan.robbaniexam.ui.exam.ExamActivity
 
 class ExamSecurityManager(
     private val activity: Activity,
@@ -26,6 +26,7 @@ class ExamSecurityManager(
     fun applyExamSecurity() {
         enableScreenshotProtection()
         enableImmersiveMode()
+        enableKeepScreenOn()
         startLockTaskIfSupported()
     }
 
@@ -51,11 +52,37 @@ class ExamSecurityManager(
     }
 
     /**
+     * Keeps screen turned on during exam
+     */
+    fun enableKeepScreenOn() {
+        activity.window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+    }
+
+    /**
      * Starts LockTask mode (Screen Pinning) to lock Home, Recents, and Back gestures
      */
     fun startLockTaskIfSupported() {
         try {
             activity.startLockTask()
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
+    /**
+     * Re-brings the Exam Activity immediately to the top if user presses Home or Recents
+     */
+    fun reorderExamToFront() {
+        try {
+            val am = activity.getSystemService(Context.ACTIVITY_SERVICE) as? ActivityManager
+            am?.moveTaskToFront(activity.taskId, ActivityManager.MOVE_TASK_WITH_HOME)
+
+            val intent = Intent(activity, ExamActivity::class.java).apply {
+                flags = Intent.FLAG_ACTIVITY_REORDER_TO_FRONT or
+                        Intent.FLAG_ACTIVITY_NEW_TASK or
+                        Intent.FLAG_ACTIVITY_SINGLE_TOP
+            }
+            activity.startActivity(intent)
         } catch (e: Exception) {
             e.printStackTrace()
         }
@@ -99,7 +126,7 @@ class ExamSecurityManager(
     }
 
     /**
-     * Triggered when a violation occurs (e.g. app switch, split screen)
+     * Triggered when a violation occurs (e.g. app switch, home/recents pressed)
      */
     fun recordViolation(type: ViolationType, customMessage: String? = null) {
         if (isExamLocked) return

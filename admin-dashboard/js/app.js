@@ -1,28 +1,49 @@
-// Robbani Exam Admin Dashboard Production Logic
+// Robbani Exam Admin Dashboard Production Logic (With Live Realtime Firebase Sync)
 document.addEventListener("DOMContentLoaded", function () {
 
-    // Load initial exams from LocalStorage or empty list
-    let exams = JSON.parse(localStorage.getItem("robbani_exams")) || [];
+    // Firebase Database Configuration (Default Live Public RTDB)
+    const defaultFirebaseDbUrl = "https://robbani-exam-live-default-rtdb.firebaseio.com";
+    const firebaseDbUrl = localStorage.getItem("robbani_firebase_db_url") || defaultFirebaseDbUrl;
 
-    // Load dynamic student session status from LocalStorage or empty list
-    let studentsStatus = JSON.parse(localStorage.getItem("robbani_students_status")) || [];
+    // Load initial local exams & student statuses
+    let exams = JSON.parse(localStorage.getItem("robbani_exams")) || [];
+    let studentsStatusMap = {};
 
     function saveExams() {
         localStorage.setItem("robbani_exams", JSON.stringify(exams));
         updateAllUI();
     }
 
-    function saveStudentsStatus() {
-        localStorage.setItem("robbani_students_status", JSON.stringify(studentsStatus));
-        updateAllUI();
+    // Initialize Live Firebase Realtime Sync
+    try {
+        if (window.firebase && !firebase.apps.length) {
+            firebase.initializeApp({
+                databaseURL: firebaseDbUrl
+            });
+        }
+
+        if (window.firebase) {
+            const dbRef = firebase.database().ref("students");
+            dbRef.on("value", function (snapshot) {
+                const data = snapshot.val();
+                if (data) {
+                    studentsStatusMap = data;
+                    updateAllUI();
+                }
+            });
+        }
+    } catch (err) {
+        console.warn("Firebase Live Sync Error:", err);
     }
 
     // Dynamic Summary Stat Counters Calculation
     function updateStatCards() {
+        const studentList = Object.values(studentsStatusMap);
+
         const activeExamsCount = exams.length;
-        const activeStudentsCount = studentsStatus.filter(s => s.status === "SEDANG UJIAN" || s.status.startsWith("PERINGATAN")).length;
-        const totalViolationsCount = studentsStatus.reduce((sum, s) => sum + (parseInt(s.violations) || 0), 0);
-        const lockedStudentsCount = studentsStatus.filter(s => s.status === "TERKUNCI" || s.violations >= 3).length;
+        const activeStudentsCount = studentList.filter(s => s.status === "SEDANG UJIAN" || (s.status && s.status.startsWith("PERINGATAN"))).length;
+        const totalViolationsCount = studentList.reduce((sum, s) => sum + (parseInt(s.violationCount) || 0), 0);
+        const lockedStudentsCount = studentList.filter(s => s.status === "TERKUNCI" || (s.violationCount >= 3)).length;
 
         document.getElementById("statActiveExams").innerText = activeExamsCount;
         document.getElementById("statActiveStudents").innerText = activeStudentsCount;
@@ -77,8 +98,9 @@ document.addEventListener("DOMContentLoaded", function () {
         if (!tbody) return;
 
         const classFilter = document.getElementById("filterClass")?.value || "ALL";
+        const studentList = Object.values(studentsStatusMap);
 
-        const filtered = studentsStatus.filter(s => classFilter === "ALL" || s.className === classFilter);
+        const filtered = studentList.filter(s => classFilter === "ALL" || s.className === classFilter);
 
         if (filtered.length === 0) {
             tbody.innerHTML = `
@@ -91,30 +113,38 @@ document.addEventListener("DOMContentLoaded", function () {
         }
 
         tbody.innerHTML = filtered.map(s => {
+            const vCount = parseInt(s.violationCount) || 0;
             let badgeClass = "bg-success";
-            if (s.violations === 1 || s.violations === 2) badgeClass = "bg-warning text-dark";
-            if (s.violations >= 3 || s.status === "TERKUNCI") badgeClass = "bg-danger";
+            if (vCount === 1 || vCount === 2) badgeClass = "bg-warning text-dark";
+            if (vCount >= 3 || s.status === "TERKUNCI") badgeClass = "bg-danger";
 
             return `
                 <tr>
-                    <td class="fw-bold">${s.name}</td>
-                    <td><span class="badge bg-secondary">${s.className}</span></td>
-                    <td><span class="badge bg-light text-dark border">${s.examCode}</span></td>
-                    <td><span class="badge badge-status ${badgeClass}">${s.status}</span></td>
-                    <td class="text-center fw-bold ${s.violations > 0 ? 'text-danger' : 'text-success'}">${s.violations} / 3</td>
-                    <td class="small text-muted">${s.lastReason || '-'}</td>
-                    <td class="fw-bold text-primary">${s.remaining || '-'}</td>
+                    <td class="fw-bold">${s.studentName || s.name || 'Siswa'}</td>
+                    <td><span class="badge bg-secondary">${s.className || '-'}</span></td>
+                    <td><span class="badge bg-light text-dark border">${s.examCode || '-'}</span></td>
+                    <td><span class="badge badge-status ${badgeClass}">${s.status || 'AKTIF'}</span></td>
+                    <td class="text-center fw-bold ${vCount > 0 ? 'text-danger' : 'text-success'}">${vCount} / 3</td>
+                    <td class="small text-muted">${s.lastViolationReason || s.lastReason || '-'}</td>
+                    <td class="fw-bold text-primary">${s.remainingSeconds ? formatTime(s.remainingSeconds) : 'Aktif'}</td>
                     <td>
-                        <button class="btn btn-sm btn-outline-warning" onclick="resetViolation('${s.id}')">
+                        <button class="btn btn-sm btn-outline-warning" onclick="resetViolation('${s.studentId}')">
                             <i class="fas fa-key me-1"></i> Buka PIN
                         </button>
-                        <button class="btn btn-sm btn-outline-danger" onclick="removeStudentSession('${s.id}')">
+                        <button class="btn btn-sm btn-outline-danger" onclick="removeStudentSession('${s.studentId}')">
                             <i class="fas fa-times"></i>
                         </button>
                     </td>
                 </tr>
             `;
         }).join("");
+    }
+
+    function formatTime(seconds) {
+        if (!seconds) return "-";
+        const m = Math.floor(seconds / 60);
+        const s = seconds % 60;
+        return `${m}:${s < 10 ? '0' : ''}${s}`;
     }
 
     function updateAllUI() {
@@ -163,7 +193,6 @@ document.addEventListener("DOMContentLoaded", function () {
             if (modal) modal.hide();
             formExam.reset();
 
-            // Auto-display QR Modal for the newly created exam
             showQrModal(generatedCode);
         });
     }
@@ -210,35 +239,43 @@ document.addEventListener("DOMContentLoaded", function () {
     };
 
     window.resetViolation = function (studentId) {
-        const student = studentsStatus.find(s => s.id === studentId);
-        if (student) {
-            student.violations = 0;
-            student.status = "SEDANG UJIAN";
-            student.lastReason = "Buka Kunci PIN Guru";
-            saveStudentsStatus();
-            alert(`Siswa ${student.name} berhasil dibuka kunci.`);
+        if (window.firebase && studentId) {
+            firebase.database().ref(`students/${studentId}`).update({
+                status: "SEDANG UJIAN",
+                violationCount: 0,
+                lastViolationReason: "Buka Kunci PIN Guru"
+            });
+            alert("Perintah buka kunci berhasil dikirim ke siswa.");
         }
     };
 
     window.removeStudentSession = function (studentId) {
-        studentsStatus = studentsStatus.filter(s => s.id !== studentId);
-        saveStudentsStatus();
+        if (window.firebase && studentId) {
+            firebase.database().ref(`students/${studentId}`).remove();
+        }
     };
 
     window.clearFinishedStudents = function () {
-        studentsStatus = studentsStatus.filter(s => s.status === "SEDANG UJIAN" || s.status.startsWith("PERINGATAN") || s.status === "TERKUNCI");
-        saveStudentsStatus();
+        if (window.firebase) {
+            const studentList = Object.values(studentsStatusMap);
+            studentList.forEach(s => {
+                if (s.status === "SELESAI") {
+                    firebase.database().ref(`students/${s.studentId}`).remove();
+                }
+            });
+        }
     };
 
     window.exportReportToCsv = function () {
-        if (studentsStatus.length === 0) {
+        const studentList = Object.values(studentsStatusMap);
+        if (studentList.length === 0) {
             alert("Belum ada data aktivitas siswa untuk diekspor.");
             return;
         }
 
         let csvContent = "data:text/csv;charset=utf-8,Nama Siswa,Kelas,Kode Ujian,Status,Jumlah Pelanggaran,Catatan Terakhir,Sisa Waktu\n";
-        studentsStatus.forEach(s => {
-            csvContent += `"${s.name}","${s.className}","${s.examCode}","${s.status}","${s.violations}","${s.lastReason}","${s.remaining}"\n`;
+        studentList.forEach(s => {
+            csvContent += `"${s.studentName || s.name}","${s.className}","${s.examCode}","${s.status}","${s.violationCount || 0}","${s.lastViolationReason || ''}","${s.remainingSeconds || ''}"\n`;
         });
         const encodedUri = encodeURI(csvContent);
         const link = document.createElement("a");
@@ -253,25 +290,12 @@ document.addEventListener("DOMContentLoaded", function () {
         const dbUrl = document.getElementById("firebaseDbUrl")?.value.trim();
         if (dbUrl) {
             localStorage.setItem("robbani_firebase_db_url", dbUrl);
-            alert("Pengaturan Database Server Firebase Berhasil Disimpan!");
-        } else {
-            alert("Pengaturan Server Disimpan dalam Mode Local Realtime.");
+            alert("Pengaturan Database Server Firebase Berhasil Disimpan! Memuat ulang...");
+            location.reload();
         }
-        const modal = bootstrap.Modal.getInstance(document.getElementById("modalServerConfig"));
-        if (modal) modal.hide();
     };
 
-    // Cross-tab / Multi-device Sync Listener via Storage Event
-    window.addEventListener("storage", function (e) {
-        if (e.key === "robbani_exams") {
-            exams = JSON.parse(e.newValue) || [];
-        }
-        if (e.key === "robbani_students_status") {
-            studentsStatus = JSON.parse(e.newValue) || [];
-        }
-        updateAllUI();
-    });
+    document.getElementById("filterClass")?.addEventListener("change", renderStudentsTable);
 
-    // Initial render
     updateAllUI();
 });

@@ -2,11 +2,25 @@ package com.ryan.robbaniexam.data.repository
 
 import com.google.gson.Gson
 import com.ryan.robbaniexam.data.model.ExamSession
+import com.ryan.robbaniexam.data.model.LiveStudentStatus
 import com.ryan.robbaniexam.data.model.StudentInfo
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import okhttp3.RequestBody.Companion.toRequestBody
+import java.util.concurrent.TimeUnit
 
 object ExamRepository {
     private val gson = Gson()
     private val cachedSessions = mutableMapOf<String, ExamSession>()
+
+    // Default Public Live Firebase Realtime DB Endpoint for instant real-time student monitoring
+    var firebaseDbUrl: String = "https://robbani-exam-live-default-rtdb.firebaseio.com"
+
+    private val httpClient = OkHttpClient.Builder()
+        .connectTimeout(5, TimeUnit.SECONDS)
+        .readTimeout(5, TimeUnit.SECONDS)
+        .build()
 
     fun registerSession(session: ExamSession) {
         if (session.examCode.isNotEmpty()) {
@@ -31,10 +45,9 @@ object ExamRepository {
     fun getExamSessionByInput(input: String): ExamSession {
         val cleanInput = input.trim()
 
-        // 1. Check if input is a direct Moodle / HTTP URL
         if (cleanInput.startsWith("http://", ignoreCase = true) || cleanInput.startsWith("https://", ignoreCase = true)) {
             val session = ExamSession(
-                examCode = "CUSTOM-" + System.currentTimeMillis().toString().takeLast(4),
+                examCode = "LINK-" + System.currentTimeMillis().toString().takeLast(4),
                 title = "Ujian Moodle LMS Sekolah",
                 moodleUrl = cleanInput,
                 durationMinutes = 90,
@@ -44,13 +57,11 @@ object ExamRepository {
             return session
         }
 
-        // 2. Check cached/scanned sessions by Exam Code
         val cached = cachedSessions[cleanInput.uppercase()]
         if (cached != null) {
             return cached
         }
 
-        // 3. Fallback: Create dynamic session using input as code or domain
         val formattedUrl = if (cleanInput.contains(".")) {
             if (!cleanInput.startsWith("http")) "https://$cleanInput" else cleanInput
         } else {
@@ -66,11 +77,28 @@ object ExamRepository {
         )
     }
 
-    fun createSessionJson(session: ExamSession): String {
-        return gson.toJson(session)
-    }
+    /**
+     * Sends student status & violations live to Firebase Realtime Database / Admin Dashboard
+     */
+    fun pushLiveStudentStatus(status: LiveStudentStatus) {
+        Thread {
+            try {
+                val jsonPayload = gson.toJson(status)
+                val body = jsonPayload.toRequestBody("application/json; charset=utf-8".toMediaType())
 
-    fun createStudentJson(student: StudentInfo): String {
-        return gson.toJson(student)
+                // Clean URL format
+                val baseUrl = if (firebaseDbUrl.endsWith("/")) firebaseDbUrl.dropLast(1) else firebaseDbUrl
+                val targetUrl = "$baseUrl/students/${status.studentId}.json"
+
+                val request = Request.Builder()
+                    .url(targetUrl)
+                    .put(body)
+                    .build()
+
+                httpClient.newCall(request).execute().close()
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }.start()
     }
 }
