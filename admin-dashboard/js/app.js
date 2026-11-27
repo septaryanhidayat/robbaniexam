@@ -151,7 +151,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
             fbDb.ref(".info/connected").on("value", (snap) => {
                 setConnectionStatus(snap.val() === true ? "conn-online" : "conn-connecting",
-                    snap.val() === true ? "Firebase Live" : "Menghubungkan...");
+                    snap.val() === true ? "Server Live" : "Menghubungkan...");
             });
 
             fbDb.ref("settings/adminAuth").on("value", (snap) => {
@@ -620,7 +620,7 @@ document.addEventListener("DOMContentLoaded", function () {
                     <div class="panel-card text-center p-5">
                         <i class="fas fa-folder-plus fa-3x text-primary opacity-50 mb-3"></i>
                         <h5 class="fw-bold mb-1">Belum Ada Ujian pada Kelas Akses Anda</h5>
-                        <p class="text-muted small mb-3">Klik <strong>Buat Ujian</strong> untuk mendaftarkan link Moodle dan menghasilkan QR Code siswa.</p>
+                        <p class="text-muted small mb-3">Klik <strong>Buat Ujian</strong> untuk mendaftarkan link ujian dan menghasilkan QR Code siswa.</p>
                         <button class="btn btn-primary btn-sm rounded-pill px-4" data-bs-toggle="modal" data-bs-target="#modalCreateExam" onclick="prepareCreateExamModal()">
                             <i class="fas fa-plus me-1"></i> Buat Ujian Pertama
                         </button>
@@ -751,8 +751,8 @@ document.addEventListener("DOMContentLoaded", function () {
                     </td>
                     <td class="font-mono fw-bold text-primary">${formatTime(s.remainingSeconds)}</td>
                     <td class="text-end text-nowrap">
-                        <button class="btn btn-sm btn-outline-primary rounded-pill me-1" onclick="resetViolation('${escapeHtml(fbKey)}')" title="Buka Kunci Jarak Jauh">
-                            <i class="fas fa-unlock"></i>
+                        <button class="btn btn-sm ${(st === "TERKUNCI" || vCount >= maxAllowed) ? "btn-danger fw-semibold" : "btn-outline-primary"} rounded-pill me-1" onclick="resetViolation('${escapeHtml(fbKey)}')" title="Buka Kunci Jarak Jauh">
+                            <i class="fas fa-unlock"></i>${(st === "TERKUNCI" || vCount >= maxAllowed) ? " Buka" : ""}
                         </button>
                         <button class="btn btn-sm btn-outline-info rounded-pill me-1" onclick="sendMessageToStudent('${escapeHtml(fbKey)}', '${escapeHtml(name)}')" title="Kirim Pesan ke HP Siswa">
                             <i class="fas fa-comment-dots"></i>
@@ -793,7 +793,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
     window.prepareCreateExamModal = function () {
         document.getElementById("editingExamCode").value = "";
-        document.getElementById("examModalTitle").innerHTML = '<i class="fas fa-plus-circle me-2"></i>Buat Sesi Ujian Moodle';
+        document.getElementById("examModalTitle").innerHTML = '<i class="fas fa-plus-circle me-2"></i>Buat Sesi Ujian';
         document.getElementById("formCreateExam").reset();
         document.getElementById("examDuration").value = 90;
         document.getElementById("examMaxViolations").value = 3;
@@ -905,7 +905,7 @@ document.addEventListener("DOMContentLoaded", function () {
         if (!exam || !isExamAllowed(exam)) return;
         Swal.fire({
             title: `Hapus Ujian ${examCode}?`,
-            text: "Ujian akan dihapus dari daftar dan Firebase.",
+            text: "Ujian akan dihapus dari daftar dan server.",
             icon: "warning",
             width: "34rem",
             position: "center",
@@ -928,12 +928,14 @@ document.addEventListener("DOMContentLoaded", function () {
     window.resetViolation = function (fbKey) {
         if (!fbDb || !fbKey) return;
         delete alertedViolationsMap[fbKey];
+        const now = Date.now();
         fbDb.ref(`students/${fbKey}`).update({
             status: "SEDANG UJIAN",
             violationCount: 0,
             lastViolationReason: "Buka Kunci Jarak Jauh Pengawas",
             remoteCommand: "UNLOCK",
-            remoteMessage: ""
+            remoteMessage: "",
+            remoteCommandAt: now
         });
         showCenterSwal({
             title: "Perintah Buka Kunci Terkirim",
@@ -962,13 +964,87 @@ document.addEventListener("DOMContentLoaded", function () {
                 const msgText = result.value.trim();
                 fbDb.ref(`students/${fbKey}`).update({
                     remoteCommand: "MESSAGE",
-                    remoteMessage: msgText
+                    remoteMessage: msgText,
+                    remoteCommandAt: Date.now()
                 });
                 showCenterSwal({
                     title: `Notifikasi Terkirim ke ${studentName}`,
                     html: `<div class="p-3 bg-light rounded-3 border text-dark fw-semibold">${escapeHtml(msgText)}</div>`,
                     icon: "success",
                     timer: 2200
+                });
+            }
+        });
+    };
+
+    window.sendMassMessageToStudents = function () {
+        if (!fbDb || !window.Swal) return;
+        const classFilter = document.getElementById("filterClass")?.value || "ALL";
+        const statusFilter = document.getElementById("filterStatus")?.value || "ALL";
+        const searchQuery = (document.getElementById("searchStudent")?.value || "").trim().toLowerCase();
+
+        const targets = getVisibleStudents().filter(s => {
+            const st = String(s.status || "").toUpperCase();
+            if (st === "SELESAI") return false;
+            if (classFilter !== "ALL" && s.className !== classFilter) return false;
+            if (statusFilter === "ACTIVE" && st !== "SEDANG UJIAN") return false;
+            if (statusFilter === "WARNING" && !st.startsWith("PERINGATAN")) return false;
+            if (statusFilter === "LOCKED" && st !== "TERKUNCI") return false;
+            if (statusFilter === "FINISHED") return false;
+            if (searchQuery) {
+                const hay = `${s.studentName || ""} ${s.nis || ""} ${s.examCode || ""} ${s.className || ""}`.toLowerCase();
+                if (!hay.includes(searchQuery)) return false;
+            }
+            return Boolean(s._fbKey);
+        });
+
+        if (targets.length === 0) {
+            showCenterSwal({
+                title: "Tidak Ada Siswa Aktif",
+                text: "Belum ada siswa yang sedang mengerjakan ujian pada filter/kelas saat ini.",
+                icon: "info",
+                timer: 2400
+            });
+            return;
+        }
+
+        const scopeLabel = classFilter === "ALL" ? "Semua Kelas Akses" : `Kelas ${classFilter}`;
+        Swal.fire({
+            title: "Kirim Pesan Info Masal",
+            html: `<p class="text-muted small mb-2">Pesan akan langsung muncul di layar ujian <strong>${targets.length} siswa aktif</strong> (${escapeHtml(scopeLabel)}) beserta bunyi peringatan.</p>`,
+            input: "textarea",
+            inputPlaceholder: "Contoh: Waktu ujian tersisa 15 menit, periksa kembali jawaban Anda!",
+            width: "38rem",
+            position: "center",
+            showCancelButton: true,
+            confirmButtonText: `<i class="fas fa-bullhorn me-1"></i> Kirim ke ${targets.length} Siswa`,
+            cancelButtonText: "Batal",
+            confirmButtonColor: "#0284c7",
+            customClass: { popup: "robbani-swal-wide" }
+        }).then(result => {
+            if (result.isConfirmed && result.value && result.value.trim()) {
+                const msgText = result.value.trim();
+                const now = Date.now();
+                const updates = {};
+                targets.forEach(s => {
+                    updates[`${s._fbKey}/remoteCommand`] = "MESSAGE";
+                    updates[`${s._fbKey}/remoteMessage`] = msgText;
+                    updates[`${s._fbKey}/remoteCommandAt`] = now;
+                });
+                fbDb.ref("students").update(updates).then(() => {
+                    showCenterSwal({
+                        title: `Pesan Masal Terkirim (${targets.length} Siswa)`,
+                        html: `<div class="p-3 bg-light rounded-3 border text-dark fw-semibold">${escapeHtml(msgText)}</div>`,
+                        icon: "success",
+                        timer: 2500
+                    });
+                }).catch(err => {
+                    showCenterSwal({
+                        title: "Gagal Mengirim Pesan Masal",
+                        text: err?.message || "Periksa koneksi server Anda.",
+                        icon: "error",
+                        timer: 2800
+                    });
                 });
             }
         });
@@ -992,6 +1068,7 @@ document.addEventListener("DOMContentLoaded", function () {
                 fbDb.ref(`students/${fbKey}`).update({
                     status: "SELESAI",
                     remoteCommand: "FORCE_FINISH",
+                    remoteCommandAt: Date.now(),
                     lastViolationReason: "Diakhiri paksa oleh Pengawas"
                 });
                 showCenterSwal({
@@ -1054,9 +1131,9 @@ document.addEventListener("DOMContentLoaded", function () {
         });
         showCenterSwal({
             title: msg ? "Pengumuman Ditayangkan" : "Pengumuman Dihapus",
-            text: msg ? "Pengumuman sekarang tampil di beranda aplikasi siswa." : "Banner pengumuman telah dihapus dari aplikasi siswa.",
+            text: msg ? "Pengumuman sekarang tampil di beranda & layar ujian aplikasi siswa secara real-time." : "Banner pengumuman telah dihapus dari aplikasi siswa.",
             icon: "success",
-            timer: 2000
+            timer: 2200
         });
     };
 

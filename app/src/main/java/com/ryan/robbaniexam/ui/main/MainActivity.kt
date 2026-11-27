@@ -29,6 +29,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var binding: ActivityMainBinding
     private lateinit var securityManager: ExamSecurityManager
     private var scannedExamSession: ExamSession? = null
+    private var announcementStreamHandle: ExamRepository.StreamHandle? = null
 
     private val defaultClasses = listOf(
         "7A", "7B", "7C",
@@ -111,7 +112,7 @@ class MainActivity : AppCompatActivity() {
                 return@setOnClickListener
             }
             if (codeOrUrl.isEmpty()) {
-                binding.etExamCode.error = "Kode Ujian / Link Moodle wajib diisi"
+                binding.etExamCode.error = "Kode Ujian / Link Ujian wajib diisi"
                 return@setOnClickListener
             }
 
@@ -179,6 +180,19 @@ class MainActivity : AppCompatActivity() {
         super.onResume()
         updateReadinessStatus()
         loadGlobalAnnouncement()
+        startAnnouncementStream()
+    }
+
+    override fun onPause() {
+        super.onPause()
+        announcementStreamHandle?.stop()
+        announcementStreamHandle = null
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        announcementStreamHandle?.stop()
+        announcementStreamHandle = null
     }
 
     private fun loadDynamicClasses(adapter: ArrayAdapter<String>) {
@@ -235,18 +249,31 @@ class MainActivity : AppCompatActivity() {
     private fun loadGlobalAnnouncement() {
         ExamRepository.fetchBroadcastAnnouncement { message ->
             if (!isFinishing && !isDestroyed) {
-                if (!message.isNullOrBlank()) {
-                    binding.tvAnnouncementText.text = message
-                    binding.cardAnnouncement.visibility = View.VISIBLE
-                } else {
-                    binding.cardAnnouncement.visibility = View.GONE
-                }
+                applyAnnouncementBanner(message ?: "")
             }
         }
     }
 
+    private fun startAnnouncementStream() {
+        announcementStreamHandle?.stop()
+        announcementStreamHandle = ExamRepository.startAnnouncementStream { state ->
+            if (!isFinishing && !isDestroyed) {
+                applyAnnouncementBanner(state.message)
+            }
+        }
+    }
+
+    private fun applyAnnouncementBanner(message: String) {
+        if (message.isNotBlank()) {
+            binding.tvAnnouncementText.text = message
+            binding.cardAnnouncement.visibility = View.VISIBLE
+        } else {
+            binding.cardAnnouncement.visibility = View.GONE
+        }
+    }
+
     private fun showExamPreview(session: ExamSession) {
-        binding.tvPreviewExamTitle.text = session.title.ifEmpty { "Ujian Moodle Siap" }
+        binding.tvPreviewExamTitle.text = session.title.ifEmpty { "Sesi Ujian Siap" }
         val subjectText = if (session.subject.isNotEmpty()) "${session.subject} • " else ""
         binding.tvPreviewExamMeta.text =
             "${subjectText}Kode: ${session.examCode} • Durasi ${session.durationMinutes} menit • Batas ${session.maxViolations}x"

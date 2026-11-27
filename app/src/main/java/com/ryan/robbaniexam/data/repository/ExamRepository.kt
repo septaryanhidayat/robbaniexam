@@ -13,6 +13,7 @@ import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
+import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 
@@ -20,6 +21,7 @@ object ExamRepository {
     private val gson = Gson()
     private val cachedSessions = mutableMapOf<String, ExamSession>()
     private val mainHandler by lazy { Handler(Looper.getMainLooper()) }
+    private val writeExecutor = Executors.newSingleThreadExecutor()
 
     // Standardized Firebase Realtime Database URL
     var firebaseDbUrl: String = "https://robbaniexam-default-rtdb.firebaseio.com"
@@ -32,7 +34,7 @@ object ExamRepository {
 
     private val sseClient = OkHttpClient.Builder()
         .connectTimeout(8, TimeUnit.SECONDS)
-        .readTimeout(0, TimeUnit.MILLISECONDS)
+        .readTimeout(45, TimeUnit.SECONDS)
         .retryOnConnectionFailure(true)
         .build()
 
@@ -40,7 +42,13 @@ object ExamRepository {
         val remoteCommand: String = "",
         val remoteMessage: String = "",
         val status: String? = null,
-        val violationCount: Int? = null
+        val violationCount: Int? = null,
+        val remoteCommandAt: Long = 0L
+    )
+
+    data class AnnouncementState(
+        val message: String = "",
+        val updatedAt: Long = 0L
     )
 
     class StreamHandle {
@@ -90,7 +98,7 @@ object ExamRepository {
         if (trimmed.startsWith("http://", ignoreCase = true) || trimmed.startsWith("https://", ignoreCase = true)) {
             val session = ExamSession(
                 examCode = "QR-" + System.currentTimeMillis().toString().takeLast(4),
-                title = "Ujian Moodle LMS Sekolah",
+                title = "Ujian Online Sekolah",
                 moodleUrl = trimmed,
                 durationMinutes = 90,
                 adminPin = "123456"
@@ -118,7 +126,7 @@ object ExamRepository {
         if (cleanInput.startsWith("http://", ignoreCase = true) || cleanInput.startsWith("https://", ignoreCase = true)) {
             val session = ExamSession(
                 examCode = "LINK-" + System.currentTimeMillis().toString().takeLast(4),
-                title = "Ujian Moodle LMS Sekolah",
+                title = "Ujian Online Sekolah",
                 moodleUrl = cleanInput,
                 durationMinutes = 90,
                 adminPin = "123456"
@@ -140,7 +148,7 @@ object ExamRepository {
 
         return ExamSession(
             examCode = cleanInput.uppercase(),
-            title = "Ujian Moodle ($cleanInput)",
+            title = "Ujian Online ($cleanInput)",
             moodleUrl = formattedUrl,
             durationMinutes = 90,
             adminPin = "123456"
@@ -198,30 +206,137 @@ object ExamRepository {
     }
 
     fun fetchBroadcastAnnouncement(onResult: (String?) -> Unit) {
+        fetchBroadcastAnnouncementState { state ->
+            onResult(state?.message?.takeIf { it.isNotEmpty() })
+        }
+    }
+
+    fun fetchBroadcastAnnouncementState(onResult: (AnnouncementState?) -> Unit) {
         Thread {
-            var message: String? = null
+            var state: AnnouncementState? = null
             try {
                 val targetUrl = "${normalizedBaseUrl()}/settings/announcement.json"
                 val request = Request.Builder().url(targetUrl).get().build()
                 httpClient.newCall(request).execute().use { response ->
                     if (response.isSuccessful) {
                         val body = response.body?.string()?.trim()
-                        if (!body.isNullOrBlank() && body != "null") {
+                        if (body == "null") {
+                            state = AnnouncementState(message = "", updatedAt = 0L)
+                        } else if (!body.isNullOrBlank()) {
                             val elem = JsonParser.parseString(body)
                             if (elem.isJsonObject) {
-                                val text = elem.asJsonObject.get("message")?.takeIf { !it.isJsonNull }?.asString?.trim()
-                                if (!text.isNullOrEmpty()) message = text
+                                val obj = elem.asJsonObject
+                                val text = obj.get("message")?.takeIf { !it.isJsonNull }?.asString?.trim() ?: ""
+                                val updatedAt = obj.get("updatedAt")?.takeIf { !it.isJsonNull }?.asLong ?: 0L
+                                state = AnnouncementState(message = text, updatedAt = updatedAt)
                             } else if (elem.isJsonPrimitive) {
                                 val text = elem.asString.trim()
-                                if (text.isNotEmpty()) message = text
+                                state = AnnouncementState(message = text, updatedAt = 0L)
                             }
                         }
                     }
                 }
             } catch (_: Exception) {
             }
-            mainHandler.post { onResult(message) }
+            mainHandler.post { onResult(state) }
         }.start()
+    }
+
+    fun parseAnnouncementSsePayload(eventType: String, rawJson: String): AnnouncementState? {
+        if (eventType != "put" && eventType != "patch") return null
+        if (rawJson.isBlank() || rawJson == "null") return null
+        return try {
+            val root = JsonParser.parseString(rawJson).asJsonObject
+            val path = root.get("path")?.asString ?: "/"
+            val dataElem = root.get("data") ?: return null
+            if (dataElem.isJsonNull) {
+                return if (path == "/" || path == "/message") {
+                    AnnouncementState(message = "", updatedAt = 0L)
+                } else {
+                    null
+                }
+            }
+
+            if (path == "/" && dataElem.isJsonObject) {
+                val obj = dataElem.asJsonObject
+                val msg = obj.get("message")?.takeIf { !it.isJsonNull }?.asString?.trim() ?: ""
+                val updatedAt = obj.get("updatedAt")?.takeIf { !it.isJsonNull }?.asLong ?: 0L
+                AnnouncementState(message = msg, updatedAt = updatedAt)
+            } else if (path == "/" && dataElem.isJsonPrimitive) {
+                AnnouncementState(message = dataElem.asString.trim(), updatedAt = 0L)
+            } else if (path == "/message" && dataElem.isJsonPrimitive) {
+                AnnouncementState(message = dataElem.asString.trim(), updatedAt = System.currentTimeMillis())
+            } else {
+                null
+            }
+        } catch (_: Exception) {
+            null
+        }
+    }
+
+    /**
+     * Streams /settings/announcement.json via Firebase SSE so mass announcements reach
+     * both MainActivity and active ExamActivity screens in real time.
+     */
+    fun startAnnouncementStream(onUpdate: (AnnouncementState) -> Unit): StreamHandle {
+        val handle = StreamHandle()
+        val streamUrl = "${normalizedBaseUrl()}/settings/announcement.json"
+
+        val thread = Thread {
+            while (!handle.isCancelled && !Thread.currentThread().isInterrupted) {
+                try {
+                    val request = Request.Builder()
+                        .url(streamUrl)
+                        .header("Accept", "text/event-stream")
+                        .header("Accept-Encoding", "identity")
+                        .header("Cache-Control", "no-cache")
+                        .build()
+
+                    val call = sseClient.newCall(request)
+                    handle.currentCall = call
+
+                    call.execute().use { response ->
+                        val body = response.body
+                        if (response.isSuccessful && body != null) {
+                            val source = body.source()
+                            var currentEvent = ""
+                            while (!handle.isCancelled && !source.exhausted()) {
+                                val line = source.readUtf8Line() ?: break
+                                when {
+                                    line.startsWith("event:") -> {
+                                        currentEvent = line.removePrefix("event:").trim()
+                                    }
+                                    line.startsWith("data:") -> {
+                                        val data = line.removePrefix("data:").trim()
+                                        val state = parseAnnouncementSsePayload(currentEvent, data)
+                                        if (state != null) {
+                                            mainHandler.post {
+                                                if (!handle.isCancelled) {
+                                                    onUpdate(state)
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                } catch (e: Exception) {
+                    Log.w("RobbaniSSE", "Announcement stream error: ${e.message}")
+                }
+
+                if (!handle.isCancelled) {
+                    try {
+                        Thread.sleep(2000L)
+                    } catch (_: InterruptedException) {
+                        break
+                    }
+                }
+            }
+        }
+        handle.workerThread = thread
+        thread.start()
+        return handle
     }
 
     /**
@@ -271,12 +386,13 @@ object ExamRepository {
      * Sends student status & violations via PATCH so heartbeats never overwrite pending remoteCommand from dashboard.
      */
     fun pushLiveStudentStatus(status: LiveStudentStatus, onComplete: ((Boolean) -> Unit)? = null) {
-        Thread {
+        writeExecutor.execute {
             var success = false
             try {
                 val obj = gson.toJsonTree(status).asJsonObject
                 obj.remove("remoteCommand")
                 obj.remove("remoteMessage")
+                obj.remove("remoteCommandAt")
                 val body = obj.toString().toRequestBody("application/json; charset=utf-8".toMediaType())
                 val cleanStudentId = sanitizeId(status.studentId)
                 val targetUrl = "${normalizedBaseUrl()}/students/$cleanStudentId.json"
@@ -295,7 +411,7 @@ object ExamRepository {
             if (onComplete != null) {
                 mainHandler.post { onComplete(success) }
             }
-        }.start()
+        }
     }
 
     /**
@@ -314,13 +430,18 @@ object ExamRepository {
                 val obj: JsonObject = dataElem.asJsonObject
                 val cmd = obj.get("remoteCommand")?.takeIf { !it.isJsonNull }?.asString ?: ""
                 val msg = obj.get("remoteMessage")?.takeIf { !it.isJsonNull }?.asString ?: ""
+                val cmdAt = obj.get("remoteCommandAt")?.takeIf { !it.isJsonNull }?.asLong ?: 0L
                 val st = obj.get("status")?.takeIf { !it.isJsonNull }?.asString
                 val vc = obj.get("violationCount")?.takeIf { !it.isJsonNull }?.asInt
-                RemoteCommandUpdate(cmd, msg, st, vc)
+                RemoteCommandUpdate(cmd, msg, st, vc, cmdAt)
             } else if (path == "/remoteCommand" && dataElem.isJsonPrimitive) {
                 RemoteCommandUpdate(remoteCommand = dataElem.asString)
             } else if (path == "/remoteMessage" && dataElem.isJsonPrimitive) {
                 RemoteCommandUpdate(remoteMessage = dataElem.asString)
+            } else if (path == "/status" && dataElem.isJsonPrimitive) {
+                RemoteCommandUpdate(status = dataElem.asString)
+            } else if (path == "/violationCount" && dataElem.isJsonPrimitive) {
+                RemoteCommandUpdate(violationCount = dataElem.asInt)
             } else {
                 null
             }
@@ -369,7 +490,13 @@ object ExamRepository {
                                     line.startsWith("data:") -> {
                                         val data = line.removePrefix("data:").trim()
                                         val update = parseSseEventPayload(currentEvent, data)
-                                        if (update != null && (update.remoteCommand.isNotEmpty() || update.status != null)) {
+                                        if (update != null && (
+                                                update.remoteCommand.isNotEmpty() ||
+                                                    update.remoteMessage.isNotEmpty() ||
+                                                    update.status != null ||
+                                                    update.violationCount != null
+                                                )
+                                        ) {
                                             Log.d("RobbaniSSE", "Event $currentEvent -> cmd=${update.remoteCommand}")
                                             mainHandler.post {
                                                 if (!handle.isCancelled) {
@@ -411,7 +538,25 @@ object ExamRepository {
                     if (response.isSuccessful) {
                         val body = response.body?.string()
                         if (!body.isNullOrBlank() && body != "null") {
-                            remoteState = gson.fromJson(body, LiveStudentStatus::class.java)
+                            val elem = JsonParser.parseString(body)
+                            if (elem.isJsonObject) {
+                                val obj = elem.asJsonObject
+                                remoteState = LiveStudentStatus(
+                                    studentId = obj.get("studentId")?.takeIf { !it.isJsonNull }?.asString ?: cleanStudentId,
+                                    studentName = obj.get("studentName")?.takeIf { !it.isJsonNull }?.asString ?: "",
+                                    className = obj.get("className")?.takeIf { !it.isJsonNull }?.asString ?: "",
+                                    nis = obj.get("nis")?.takeIf { !it.isJsonNull }?.asString ?: "",
+                                    examCode = obj.get("examCode")?.takeIf { !it.isJsonNull }?.asString ?: "",
+                                    status = obj.get("status")?.takeIf { !it.isJsonNull }?.asString ?: "SEDANG UJIAN",
+                                    violationCount = obj.get("violationCount")?.takeIf { !it.isJsonNull }?.asInt ?: 0,
+                                    lastViolationReason = obj.get("lastViolationReason")?.takeIf { !it.isJsonNull }?.asString ?: "",
+                                    remainingSeconds = obj.get("remainingSeconds")?.takeIf { !it.isJsonNull }?.asInt ?: 0,
+                                    lastUpdated = obj.get("lastUpdated")?.takeIf { !it.isJsonNull }?.asLong ?: 0L,
+                                    remoteCommand = obj.get("remoteCommand")?.takeIf { !it.isJsonNull }?.asString ?: "",
+                                    remoteMessage = obj.get("remoteMessage")?.takeIf { !it.isJsonNull }?.asString ?: "",
+                                    remoteCommandAt = obj.get("remoteCommandAt")?.takeIf { !it.isJsonNull }?.asLong ?: 0L
+                                )
+                            }
                         }
                     }
                 }
@@ -422,7 +567,7 @@ object ExamRepository {
     }
 
     fun clearRemoteCommand(studentId: String) {
-        Thread {
+        writeExecutor.execute {
             try {
                 val cleanStudentId = sanitizeId(studentId)
                 val targetUrl = "${normalizedBaseUrl()}/students/$cleanStudentId.json"
@@ -435,6 +580,6 @@ object ExamRepository {
             } catch (e: Exception) {
                 Log.w("RobbaniSSE", "Clear command failed: ${e.message}")
             }
-        }.start()
+        }
     }
 }

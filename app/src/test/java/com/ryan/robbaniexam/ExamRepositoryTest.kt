@@ -85,12 +85,35 @@ class ExamRepositoryTest {
         assertEquals("MESSAGE", patchResult?.remoteCommand)
         assertEquals("Harap fokus", patchResult?.remoteMessage)
 
-        val putPayload = """{"path":"/","data":{"status":"SEDANG UJIAN","violationCount":0,"remoteCommand":"UNLOCK","remoteMessage":""}}"""
+        val putPayload = """{"path":"/","data":{"status":"SEDANG UJIAN","violationCount":0,"remoteCommand":"UNLOCK","remoteMessage":"","remoteCommandAt":1795749000000}}"""
         val putResult = ExamRepository.parseSseEventPayload("put", putPayload)
         assertNotNull(putResult)
         assertEquals("UNLOCK", putResult?.remoteCommand)
         assertEquals("SEDANG UJIAN", putResult?.status)
         assertEquals(0, putResult?.violationCount)
+        assertEquals(1795749000000L, putResult?.remoteCommandAt)
+
+        val statusOnly = ExamRepository.parseSseEventPayload("put", """{"path":"/status","data":"SEDANG UJIAN"}""")
+        assertEquals("SEDANG UJIAN", statusOnly?.status)
+    }
+
+    @Test
+    fun parseAnnouncementSsePayload_parsesObjectMessageAndClear() {
+        val putObj = ExamRepository.parseAnnouncementSsePayload(
+            "put",
+            """{"path":"/","data":{"message":"Waktu tersisa 10 menit","updatedAt":1795749111000}}"""
+        )
+        assertNotNull(putObj)
+        assertEquals("Waktu tersisa 10 menit", putObj?.message)
+        assertEquals(1795749111000L, putObj?.updatedAt)
+
+        val cleared = ExamRepository.parseAnnouncementSsePayload(
+            "put",
+            """{"path":"/","data":null}"""
+        )
+        assertNotNull(cleared)
+        assertEquals("", cleared?.message)
+        assertEquals(0L, cleared?.updatedAt)
     }
 }
 

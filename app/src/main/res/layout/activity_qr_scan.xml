@@ -30,7 +30,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_gravity="center"
-            android:text="Pindai QR Code Ujian Moodle"
+            android:text="Pindai QR Code Ujian"
             android:textColor="@color/white"
             android:textSize="18sp"
             android:textStyle="bold" />

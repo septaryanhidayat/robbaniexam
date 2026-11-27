@@ -54,10 +54,23 @@ class ExamSecurityManagerTest {
         assertEquals(1, lockedCallbacks)
         assertEquals(3, manager.violationHistory.size)
 
-        // Unlock resets count and lock
-        manager.unlockExam()
+        // Unlock resets count, lock, and suppresses spurious re-lock during grace period
+        manager.unlockExam(gracePeriodMs = 4000L)
         assertFalse(manager.isExamLocked)
+        assertFalse(manager.wasLockTaskActive)
         assertEquals(0, manager.violationCount)
+        assertTrue(manager.isWithinUnlockGrace())
+
+        // Spurious focus/unpin transitions immediately after remote unlock must not immediately re-lock
+        fakeNow += 500L
+        assertFalse(manager.recordViolation(ViolationType.APP_SWITCHED))
+        assertEquals(0, manager.violationCount)
+
+        // After grace period ends, violation tracking resumes normally
+        fakeNow += 4000L
+        assertFalse(manager.isWithinUnlockGrace())
+        assertTrue(manager.recordViolation(ViolationType.APP_SWITCHED))
+        assertEquals(1, manager.violationCount)
     }
 
     @Test

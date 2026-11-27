@@ -40,7 +40,7 @@
                         android:layout_width="match_parent"
                         android:layout_height="match_parent"
                         android:contentDescription="@string/school_name"
-                        android:padding="6dp"
+                        android:padding="3dp"
                         android:scaleType="fitCenter"
                         android:src="@drawable/ic_robbani_logo" />
                 </com.google.android.material.card.MaterialCardView>
@@ -425,6 +425,18 @@
                     android:textSize="11.5sp" />
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
+
+        <!-- Developer Watermark Footer -->
+        <TextView
+            android:id="@+id/tvDeveloperWatermark"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="18dp"
+            android:gravity="center"
+            android:text="Developed by Beranda Teknologi Digital"
+            android:textColor="@color/text_sub"
+            android:textSize="11.5sp"
+            android:textStyle="bold" />
 
     </LinearLayout>
 </androidx.core.widget.NestedScrollView>

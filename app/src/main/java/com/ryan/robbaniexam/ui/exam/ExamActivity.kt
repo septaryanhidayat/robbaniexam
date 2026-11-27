@@ -47,11 +47,16 @@ class ExamActivity : AppCompatActivity(), ViolationListener {
 
     private var countDownTimer: CountDownTimer? = null
     private var commandStreamHandle: ExamRepository.StreamHandle? = null
+    private var announcementStreamHandle: ExamRepository.StreamHandle? = null
     private var activeProctorDialog: AlertDialog? = null
     private var isLegalExit: Boolean = false
     private var remainingSeconds: Int = 0
     private var lastReason: String = "Ujian Dimulai"
     private var lastHeartbeatPushAt: Long = 0L
+    private var lastAnnouncementPollAt: Long = 0L
+    private var lastHandledCommandSignature: String = ""
+    private var baselineAnnouncementAt: Long? = null
+    private var lastShownAnnouncementSignature: String = ""
     private val mainHandler = Handler(Looper.getMainLooper())
 
     // Fast 500ms watchdog catches Back + Recent unpin attempts immediately
@@ -59,54 +64,79 @@ class ExamActivity : AppCompatActivity(), ViolationListener {
         override fun run() {
             if (isLegalExit || isFinishing || isDestroyed) return
 
-            securityManager.checkAndEnforceUnpinAttempt(
-                studentName = studentInfo.name,
-                className = studentInfo.className,
-                examCode = examSession.examCode
-            )
-
-            if (securityManager.checkSplitScreen() && !securityManager.isAdminDialogOpen) {
-                securityManager.recordViolation(
-                    type = ViolationType.SPLIT_SCREEN_DETECTED,
+            if (!securityManager.isExamLocked) {
+                securityManager.checkAndEnforceUnpinAttempt(
                     studentName = studentInfo.name,
                     className = studentInfo.className,
                     examCode = examSession.examCode
                 )
-                securityManager.reorderExamToFront()
+
+                if (securityManager.checkSplitScreen() && !securityManager.isAdminDialogOpen && !securityManager.isWithinUnlockGrace()) {
+                    securityManager.recordViolation(
+                        type = ViolationType.SPLIT_SCREEN_DETECTED,
+                        studentName = studentInfo.name,
+                        className = studentInfo.className,
+                        examCode = examSession.examCode
+                    )
+                    securityManager.reorderExamToFront()
+                }
             }
 
             mainHandler.postDelayed(this, 500L)
         }
     }
 
-    // Heartbeat & locked-state fallback poll (instant commands arrive via SSE stream; poll guarantees unlock even if SSE drops)
+    // Heartbeat & remote command/announcement fallback poll
     private val heartbeatRunnable = object : Runnable {
         override fun run() {
             if (isLegalExit || isFinishing || isDestroyed) return
+            val sid = resolvedStudentId()
             val now = System.currentTimeMillis()
-            if (now - lastHeartbeatPushAt >= 18000L) {
-                val statusText = when {
-                    securityManager.isExamLocked -> "TERKUNCI"
-                    securityManager.violationCount > 0 -> "PERINGATAN ${securityManager.violationCount}x"
-                    else -> "SEDANG UJIAN"
-                }
-                reportStatusToDashboard(statusText, securityManager.violationCount, lastReason)
-            }
-            if (securityManager.isExamLocked) {
-                ExamRepository.fetchStudentRemoteState(resolvedStudentId()) { remote ->
-                    if (remote != null && !isLegalExit && !isFinishing && !isDestroyed) {
+            val shouldPushHeartbeat = (now - lastHeartbeatPushAt >= 18000L)
+
+            ExamRepository.fetchStudentRemoteState(sid) { remote ->
+                if (isLegalExit || isFinishing || isDestroyed) return@fetchStudentRemoteState
+
+                var unlockedNow = false
+                if (remote != null) {
+                    val cmd = remote.remoteCommand.trim().uppercase()
+                    val isStatusUnlock = (securityManager.isExamLocked || securityManager.violationCount > 0) &&
+                        remote.status == "SEDANG UJIAN" &&
+                        remote.violationCount == 0
+                    if (cmd.isNotEmpty() || isStatusUnlock) {
+                        unlockedNow = cmd == "UNLOCK" || isStatusUnlock
                         handleRemoteUpdate(
                             ExamRepository.RemoteCommandUpdate(
                                 remoteCommand = remote.remoteCommand,
                                 remoteMessage = remote.remoteMessage,
                                 status = remote.status,
-                                violationCount = remote.violationCount
+                                violationCount = remote.violationCount,
+                                remoteCommandAt = remote.remoteCommandAt
                             )
                         )
                     }
                 }
+
+                if (shouldPushHeartbeat && !unlockedNow && !isLegalExit) {
+                    val statusText = when {
+                        securityManager.isExamLocked -> "TERKUNCI"
+                        securityManager.violationCount > 0 -> "PERINGATAN ${securityManager.violationCount}x"
+                        else -> "SEDANG UJIAN"
+                    }
+                    reportStatusToDashboard(statusText, securityManager.violationCount, lastReason)
+                }
             }
-            val nextDelay = if (securityManager.isExamLocked) 2500L else 20000L
+
+            if (now - lastAnnouncementPollAt >= 10000L) {
+                lastAnnouncementPollAt = now
+                ExamRepository.fetchBroadcastAnnouncementState { state ->
+                    if (state != null && !isLegalExit && !isFinishing && !isDestroyed) {
+                        handleAnnouncementUpdate(state)
+                    }
+                }
+            }
+
+            val nextDelay = if (securityManager.isExamLocked) 2500L else 8000L
             mainHandler.postDelayed(this, nextDelay)
         }
     }
@@ -160,8 +190,9 @@ class ExamActivity : AppCompatActivity(), ViolationListener {
 
         reportStatusToDashboard("SEDANG UJIAN", 0, "Ujian Dimulai")
         startRealtimeCommandStream()
+        startRealtimeAnnouncementStream()
         mainHandler.postDelayed(lockWatchdogRunnable, 1200L)
-        mainHandler.postDelayed(heartbeatRunnable, 5000L)
+        mainHandler.postDelayed(heartbeatRunnable, 2500L)
 
         binding.btnRefreshWeb.setOnClickListener {
             binding.layoutWebError.visibility = View.GONE
@@ -187,7 +218,7 @@ class ExamActivity : AppCompatActivity(), ViolationListener {
     }
 
     private fun setupHeaderUi() {
-        binding.tvExamTitle.text = examSession.title.ifEmpty { "Ujian Moodle Robbani" }
+        binding.tvExamTitle.text = examSession.title.ifEmpty { "Ujian Online Robbani" }
         val nisSuffix = if (studentInfo.nis.isNotEmpty()) " • ${studentInfo.nis}" else ""
         binding.tvStudentDetail.text = "${studentInfo.name} (${studentInfo.className})$nisSuffix"
         updateViolationBadge(0)
@@ -342,16 +373,64 @@ class ExamActivity : AppCompatActivity(), ViolationListener {
         }
     }
 
+    private fun startRealtimeAnnouncementStream() {
+        announcementStreamHandle?.stop()
+        announcementStreamHandle = ExamRepository.startAnnouncementStream { state ->
+            handleAnnouncementUpdate(state)
+        }
+    }
+
+    private fun handleAnnouncementUpdate(state: ExamRepository.AnnouncementState) {
+        if (isLegalExit || isFinishing || isDestroyed) return
+        val msg = state.message.trim()
+        val sig = "${state.updatedAt}:$msg"
+
+        if (baselineAnnouncementAt == null) {
+            baselineAnnouncementAt = state.updatedAt
+            lastShownAnnouncementSignature = sig
+            if (msg.isNotEmpty()) {
+                binding.tvProctorNotice.text = "Pengumuman: $msg"
+                binding.bannerProctorNotice.visibility = View.VISIBLE
+            }
+            return
+        }
+
+        if (msg.isEmpty()) {
+            baselineAnnouncementAt = state.updatedAt
+            lastShownAnnouncementSignature = ""
+            if (binding.tvProctorNotice.text.toString().startsWith("Pengumuman:")) {
+                binding.bannerProctorNotice.visibility = View.GONE
+            }
+            return
+        }
+
+        if (sig != lastShownAnnouncementSignature) {
+            baselineAnnouncementAt = state.updatedAt
+            lastShownAnnouncementSignature = sig
+            showWideProctorMessageModal(msg, modalTitle = "Pengumuman Masal Pengawas", bannerPrefix = "Pengumuman")
+        }
+    }
+
     private fun handleRemoteUpdate(update: ExamRepository.RemoteCommandUpdate) {
         if (isLegalExit || isFinishing || isDestroyed) return
         val sid = resolvedStudentId()
+        val cmd = update.remoteCommand.trim().uppercase()
+        val sig = "$cmd:${update.remoteCommandAt}:${update.remoteMessage}"
 
-        when (update.remoteCommand.uppercase()) {
+        if (cmd.isNotEmpty() && sig == lastHandledCommandSignature) {
+            if (cmd != "UNLOCK" || (!securityManager.isExamLocked && securityManager.violationCount == 0)) {
+                return
+            }
+        }
+
+        when (cmd) {
             "UNLOCK" -> {
+                lastHandledCommandSignature = sig
                 ExamRepository.clearRemoteCommand(sid)
                 performUnlock(sourceMessage = "Layar dibuka oleh Pengawas dari Dashboard")
             }
             "FORCE_FINISH" -> {
+                lastHandledCommandSignature = sig
                 ExamRepository.clearRemoteCommand(sid)
                 ExamAlarmPlayer.stopAlarm()
                 activeProctorDialog?.dismiss()
@@ -362,28 +441,37 @@ class ExamActivity : AppCompatActivity(), ViolationListener {
                 finish()
             }
             "MESSAGE" -> {
+                lastHandledCommandSignature = sig
                 ExamRepository.clearRemoteCommand(sid)
                 if (update.remoteMessage.isNotBlank()) {
                     showWideProctorMessageModal(update.remoteMessage)
                 }
             }
             else -> {
-                if (securityManager.isExamLocked && update.status == "SEDANG UJIAN" && update.violationCount == 0) {
+                val shouldResetFromStatus = update.status == "SEDANG UJIAN" &&
+                    update.violationCount == 0 &&
+                    (securityManager.isExamLocked || securityManager.violationCount > 0)
+                if (shouldResetFromStatus) {
                     performUnlock(sourceMessage = "Layar dibuka oleh Pengawas")
                 }
             }
         }
     }
 
-    private fun showWideProctorMessageModal(message: String) {
+    private fun showWideProctorMessageModal(
+        message: String,
+        modalTitle: String = "Pesan dari Pengawas Ujian",
+        bannerPrefix: String = "Pesan Pengawas"
+    ) {
         ExamAlarmPlayer.playWarningBeep(this)
-        binding.tvProctorNotice.text = "Pesan Pengawas: $message"
+        binding.tvProctorNotice.text = "$bannerPrefix: $message"
         binding.bannerProctorNotice.visibility = View.VISIBLE
 
         activeProctorDialog?.dismiss()
         securityManager.isAdminDialogOpen = true
 
         val view = layoutInflater.inflate(R.layout.dialog_proctor_message, null)
+        view.findViewById<TextView>(R.id.tvProctorModalTitle).text = modalTitle
         view.findViewById<TextView>(R.id.tvProctorModalMessage).text = message
         val btnOk = view.findViewById<MaterialButton>(R.id.btnAcknowledgeNotice)
 
@@ -415,11 +503,16 @@ class ExamActivity : AppCompatActivity(), ViolationListener {
 
     private fun performUnlock(sourceMessage: String) {
         ExamAlarmPlayer.stopAlarm()
-        securityManager.unlockExam()
+        activeProctorDialog?.dismiss()
+        securityManager.unlockExam(gracePeriodMs = 4000L)
         binding.layoutLockedScreen.visibility = View.GONE
         updateViolationBadge(0)
         securityManager.enableImmersiveMode()
-        securityManager.startLockTaskIfSupported()
+        if (!hasWindowFocus()) {
+            securityManager.reorderExamToFront()
+        } else {
+            securityManager.startLockTaskIfSupported(force = true)
+        }
         reportStatusToDashboard("SEDANG UJIAN", 0, sourceMessage)
         Toast.makeText(this, sourceMessage, Toast.LENGTH_SHORT).show()
     }
@@ -458,15 +551,15 @@ class ExamActivity : AppCompatActivity(), ViolationListener {
 
     override fun onPause() {
         super.onPause()
-        if (!isLegalExit && !securityManager.isAdminDialogOpen) {
+        if (!isLegalExit && !securityManager.isAdminDialogOpen && !securityManager.isAwaitingLockTaskPrompt()) {
             securityManager.reorderExamToFront()
             mainHandler.postDelayed({
-                if (!isLegalExit && !securityManager.isAdminDialogOpen) {
+                if (!isLegalExit && !securityManager.isAdminDialogOpen && !securityManager.isAwaitingLockTaskPrompt()) {
                     securityManager.reorderExamToFront()
                 }
             }, 180)
             mainHandler.postDelayed({
-                if (!isLegalExit && !securityManager.isAdminDialogOpen) {
+                if (!isLegalExit && !securityManager.isAdminDialogOpen && !securityManager.isAwaitingLockTaskPrompt()) {
                     securityManager.reorderExamToFront()
                 }
             }, 450)
@@ -493,8 +586,10 @@ class ExamActivity : AppCompatActivity(), ViolationListener {
         super.onWindowFocusChanged(hasFocus)
         if (hasFocus) {
             securityManager.enableImmersiveMode()
-            securityManager.startLockTaskIfSupported()
-        } else if (!isLegalExit && !securityManager.isAdminDialogOpen) {
+            if (!securityManager.isWithinUnlockGrace()) {
+                securityManager.startLockTaskIfSupported()
+            }
+        } else if (!isLegalExit && !securityManager.isAdminDialogOpen && !securityManager.isWithinUnlockGrace() && !securityManager.isAwaitingLockTaskPrompt()) {
             securityManager.reorderExamToFront()
             if (!securityManager.isExamLocked) {
                 securityManager.recordViolation(
@@ -574,9 +669,13 @@ class ExamActivity : AppCompatActivity(), ViolationListener {
         dialog.show()
     }
 
+    @androidx.annotation.VisibleForTesting
+    internal fun securityManagerForTest(): ExamSecurityManager = securityManager
+
     override fun onDestroy() {
         super.onDestroy()
         commandStreamHandle?.stop()
+        announcementStreamHandle?.stop()
         activeProctorDialog?.dismiss()
         ExamAlarmPlayer.stopAlarm()
         countDownTimer?.cancel()

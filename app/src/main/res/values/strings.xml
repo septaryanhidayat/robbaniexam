@@ -8,7 +8,7 @@
     <string name="student_name_hint">Nama Lengkap Siswa</string>
     <string name="student_class_hint">Pilih / Ketik Kelas (Contoh: 7A, X IPA 1)</string>
     <string name="student_nis_hint">NIS / Nomor Peserta (Opsional)</string>
-    <string name="exam_code_hint">Kode Ujian atau Link Moodle LMS</string>
+    <string name="exam_code_hint">Kode Ujian atau Link Ujian</string>
     <string name="btn_start_exam">Mulai Kerjakan Ujian</string>
     <string name="btn_scan_qr">Pindai QR Code Ujian</string>
 

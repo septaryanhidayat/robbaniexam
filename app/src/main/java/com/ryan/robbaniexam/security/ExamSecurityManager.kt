@@ -35,6 +35,8 @@ class ExamSecurityManager(
         private set
 
     private var lastViolationTimestamp: Long = 0L
+    private var unlockGraceUntilMs: Long = 0L
+    private var lastLockTaskRequestAtMs: Long = 0L
     private val _violationHistory = mutableListOf<ViolationLog>()
     val violationHistory: List<ViolationLog> get() = _violationHistory.toList()
 
@@ -83,11 +85,25 @@ class ExamSecurityManager(
         }
     }
 
-    fun startLockTaskIfSupported() {
+    fun isWithinUnlockGrace(): Boolean {
+        return timeProvider() < unlockGraceUntilMs
+    }
+
+    fun isAwaitingLockTaskPrompt(): Boolean {
+        return lastLockTaskRequestAtMs > 0L &&
+            (timeProvider() - lastLockTaskRequestAtMs) < 3000L &&
+            !isLockTaskCurrentlyActive()
+    }
+
+    fun startLockTaskIfSupported(force: Boolean = false) {
         val act = activity ?: return
         try {
             if (!isLockTaskCurrentlyActive()) {
-                act.startLockTask()
+                val now = timeProvider()
+                if (force || lastLockTaskRequestAtMs == 0L || (now - lastLockTaskRequestAtMs) >= 6000L) {
+                    lastLockTaskRequestAtMs = now
+                    act.startLockTask()
+                }
             }
         } catch (e: Exception) {
             e.printStackTrace()
@@ -104,7 +120,9 @@ class ExamSecurityManager(
         examCode: String
     ): Boolean {
         val act = activity ?: return false
-        if (isAdminDialogOpen || act.isFinishing || act.isDestroyed) return false
+        if (isExamLocked || isAdminDialogOpen || isWithinUnlockGrace() || act.isFinishing || act.isDestroyed) {
+            return false
+        }
 
         val currentlyPinned = isLockTaskCurrentlyActive()
         if (wasLockTaskActive && !currentlyPinned) {
@@ -203,7 +221,7 @@ class ExamSecurityManager(
         className: String = "",
         examCode: String = ""
     ): Boolean {
-        if (isExamLocked || isAdminDialogOpen) return false
+        if (isExamLocked || isAdminDialogOpen || isWithinUnlockGrace()) return false
 
         val now = timeProvider()
         if (lastViolationTimestamp > 0L && (now - lastViolationTimestamp) < violationCooldownMs) {
@@ -238,9 +256,11 @@ class ExamSecurityManager(
         return enteredPin.trim().isNotEmpty() && enteredPin.trim() == expected
     }
 
-    fun unlockExam() {
+    fun unlockExam(gracePeriodMs: Long = 4000L) {
         isExamLocked = false
         violationCount = 0
         lastViolationTimestamp = 0L
+        wasLockTaskActive = false
+        unlockGraceUntilMs = if (gracePeriodMs > 0L) timeProvider() + gracePeriodMs else 0L
     }
 }

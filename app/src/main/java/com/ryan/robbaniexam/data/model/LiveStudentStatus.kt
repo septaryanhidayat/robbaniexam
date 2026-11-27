@@ -13,5 +13,6 @@ data class LiveStudentStatus(
     val lastUpdated: Long = System.currentTimeMillis(),
     val violationLogs: List<ViolationLog> = emptyList(),
     val remoteCommand: String = "",
-    val remoteMessage: String = ""
+    val remoteMessage: String = "",
+    val remoteCommandAt: Long = 0L
 )

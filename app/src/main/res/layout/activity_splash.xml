@@ -14,8 +14,8 @@
         android:orientation="vertical">
 
         <com.google.android.material.card.MaterialCardView
-            android:layout_width="160dp"
-            android:layout_height="112dp"
+            android:layout_width="148dp"
+            android:layout_height="148dp"
             app:cardBackgroundColor="#FFFFFF"
             app:cardCornerRadius="28dp"
             app:cardElevation="16dp"
@@ -27,7 +27,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
                 android:contentDescription="@string/school_name"
-                android:padding="14dp"
+                android:padding="10dp"
                 android:scaleType="fitCenter"
                 android:src="@drawable/ic_robbani_logo" />
         </com.google.android.material.card.MaterialCardView>
@@ -94,13 +94,30 @@
         </LinearLayout>
     </LinearLayout>
 
-    <TextView
+    <LinearLayout
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_alignParentBottom="true"
         android:layout_centerHorizontal="true"
-        android:layout_marginBottom="8dp"
-        android:text="Robbani Exam v2.0 • Anti-Cheat Exam System"
-        android:textColor="#94A3B8"
-        android:textSize="11sp" />
+        android:layout_marginBottom="6dp"
+        android:gravity="center"
+        android:orientation="vertical">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Robbani Exam • Anti-Cheat Exam System"
+            android:textColor="#94A3B8"
+            android:textSize="11sp" />
+
+        <TextView
+            android:id="@+id/tvDeveloperWatermark"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="2dp"
+            android:text="Developed by Beranda Teknologi Digital"
+            android:textColor="#CBD5E1"
+            android:textSize="11sp"
+            android:textStyle="bold" />
+    </LinearLayout>
 </RelativeLayout>
