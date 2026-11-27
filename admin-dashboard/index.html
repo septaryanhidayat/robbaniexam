@@ -227,7 +227,15 @@
                             <i class="fas fa-bullhorn me-1"></i> Pesan Masal
                         </button>
 
-                        <button class="btn btn-sm btn-outline-primary rounded-pill px-3" onclick="clearFinishedStudents()">
+                        <button class="btn btn-sm btn-outline-primary rounded-pill px-3 fw-semibold" onclick="unlockAllStudents()" title="Buka kunci layar semua siswa yang terkunci pada tampilan ini">
+                            <i class="fas fa-unlock me-1"></i> Buka Kunci Masal
+                        </button>
+
+                        <button class="btn btn-sm btn-danger rounded-pill px-3 fw-semibold" onclick="forceFinishAllStudents()" title="Akhiri ujian dan lepas pin layar di HP semua siswa aktif pada tampilan ini">
+                            <i class="fas fa-power-off me-1"></i> Akhiri Masal
+                        </button>
+
+                        <button class="btn btn-sm btn-outline-secondary rounded-pill px-3" onclick="clearFinishedStudents()">
                             <i class="fas fa-broom me-1"></i> Bersihkan Selesai
                         </button>
 
@@ -510,6 +518,6 @@
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="js/app.js?v=2.0.2"></script>
+    <script src="js/app.js?v=2.0.3"></script>
 </body>
 </html>

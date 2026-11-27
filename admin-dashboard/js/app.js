@@ -977,26 +977,39 @@ document.addEventListener("DOMContentLoaded", function () {
         });
     };
 
-    window.sendMassMessageToStudents = function () {
-        if (!fbDb || !window.Swal) return;
+    function getFilteredActiveTargets({ onlyLocked = false } = {}) {
         const classFilter = document.getElementById("filterClass")?.value || "ALL";
         const statusFilter = document.getElementById("filterStatus")?.value || "ALL";
         const searchQuery = (document.getElementById("searchStudent")?.value || "").trim().toLowerCase();
 
-        const targets = getVisibleStudents().filter(s => {
-            const st = String(s.status || "").toUpperCase();
-            if (st === "SELESAI") return false;
-            if (classFilter !== "ALL" && s.className !== classFilter) return false;
-            if (statusFilter === "ACTIVE" && st !== "SEDANG UJIAN") return false;
-            if (statusFilter === "WARNING" && !st.startsWith("PERINGATAN")) return false;
-            if (statusFilter === "LOCKED" && st !== "TERKUNCI") return false;
-            if (statusFilter === "FINISHED") return false;
-            if (searchQuery) {
-                const hay = `${s.studentName || ""} ${s.nis || ""} ${s.examCode || ""} ${s.className || ""}`.toLowerCase();
-                if (!hay.includes(searchQuery)) return false;
-            }
-            return Boolean(s._fbKey);
-        });
+        return {
+            classFilter,
+            targets: getVisibleStudents().filter(s => {
+                const st = String(s.status || "").toUpperCase();
+                if (st === "SELESAI") return false;
+                if (onlyLocked) {
+                    const exam = examsMap[s.examCode];
+                    const maxAllowed = (exam && exam.maxViolations) ? parseInt(exam.maxViolations) : 3;
+                    const vCount = parseInt(s.violationCount) || 0;
+                    if (st !== "TERKUNCI" && vCount < maxAllowed) return false;
+                }
+                if (classFilter !== "ALL" && s.className !== classFilter) return false;
+                if (statusFilter === "ACTIVE" && st !== "SEDANG UJIAN") return false;
+                if (statusFilter === "WARNING" && !st.startsWith("PERINGATAN")) return false;
+                if (statusFilter === "LOCKED" && st !== "TERKUNCI") return false;
+                if (statusFilter === "FINISHED") return false;
+                if (searchQuery) {
+                    const hay = `${s.studentName || ""} ${s.nis || ""} ${s.examCode || ""} ${s.className || ""}`.toLowerCase();
+                    if (!hay.includes(searchQuery)) return false;
+                }
+                return Boolean(s._fbKey);
+            })
+        };
+    }
+
+    window.sendMassMessageToStudents = function () {
+        if (!fbDb || !window.Swal) return;
+        const { classFilter, targets } = getFilteredActiveTargets();
 
         if (targets.length === 0) {
             showCenterSwal({
@@ -1041,6 +1054,128 @@ document.addEventListener("DOMContentLoaded", function () {
                 }).catch(err => {
                     showCenterSwal({
                         title: "Gagal Mengirim Pesan Masal",
+                        text: err?.message || "Periksa koneksi server Anda.",
+                        icon: "error",
+                        timer: 2800
+                    });
+                });
+            }
+        });
+    };
+
+    window.unlockAllStudents = function () {
+        if (!fbDb || !window.Swal) return;
+        const { classFilter, targets } = getFilteredActiveTargets({ onlyLocked: true });
+
+        if (targets.length === 0) {
+            showCenterSwal({
+                title: "Tidak Ada Layar Terkunci",
+                text: "Saat ini tidak ada siswa berstatus terkunci pada filter/kelas yang dipilih.",
+                icon: "info",
+                timer: 2400
+            });
+            return;
+        }
+
+        const scopeLabel = classFilter === "ALL" ? "Semua Kelas Akses" : `Kelas ${classFilter}`;
+        Swal.fire({
+            title: `Buka Kunci ${targets.length} Siswa?`,
+            html: `<p class="text-muted small mb-0">Semua siswa terkunci pada <strong>${escapeHtml(scopeLabel)}</strong> akan dibuka kembali layarnya secara real-time dan pelanggarannya direset ke 0.</p>`,
+            icon: "question",
+            width: "36rem",
+            position: "center",
+            showCancelButton: true,
+            confirmButtonColor: "#2563eb",
+            confirmButtonText: `<i class="fas fa-unlock me-1"></i> Buka Kunci (${targets.length} Siswa)`,
+            cancelButtonText: "Batal",
+            customClass: { popup: "robbani-swal-wide" }
+        }).then(res => {
+            if (res.isConfirmed) {
+                const now = Date.now();
+                const updates = {};
+                targets.forEach(s => {
+                    delete alertedViolationsMap[s._fbKey];
+                    updates[`${s._fbKey}/status`] = "SEDANG UJIAN";
+                    updates[`${s._fbKey}/violationCount`] = 0;
+                    updates[`${s._fbKey}/lastViolationReason`] = "Buka Kunci Masal Pengawas";
+                    updates[`${s._fbKey}/remoteCommand`] = "UNLOCK";
+                    updates[`${s._fbKey}/remoteMessage`] = "";
+                    updates[`${s._fbKey}/remoteCommandAt`] = now;
+                });
+                fbDb.ref("students").update(updates).then(() => {
+                    showCenterSwal({
+                        title: `Buka Kunci Masal Terkirim (${targets.length} Siswa)`,
+                        text: "Layar ujian di HP siswa yang terkunci akan langsung terbuka.",
+                        icon: "success",
+                        timer: 2400
+                    });
+                }).catch(err => {
+                    showCenterSwal({
+                        title: "Gagal Membuka Kunci Masal",
+                        text: err?.message || "Periksa koneksi server Anda.",
+                        icon: "error",
+                        timer: 2800
+                    });
+                });
+            }
+        });
+    };
+
+    window.forceFinishAllStudents = function () {
+        if (!fbDb || !window.Swal) return;
+        const { classFilter, targets } = getFilteredActiveTargets();
+
+        if (targets.length === 0) {
+            showCenterSwal({
+                title: "Tidak Ada Siswa Aktif",
+                text: "Belum ada siswa yang sedang ujian atau terkunci pada filter/kelas saat ini.",
+                icon: "info",
+                timer: 2400
+            });
+            return;
+        }
+
+        const classesSummary = Array.from(new Set(targets.map(s => s.className || "-"))).sort().join(", ");
+        const scopeLabel = classFilter === "ALL" ? "Semua Kelas Akses" : `Kelas ${classFilter}`;
+        Swal.fire({
+            title: `Akhiri Ujian Masal (${targets.length} Siswa)?`,
+            html: `<div class="text-start small">
+                    <p class="mb-2">Perintah ini akan langsung <strong>mengakhiri sesi ujian &amp; melepas pin layar HP</strong> untuk <strong>${targets.length} siswa</strong> (${escapeHtml(scopeLabel)}).</p>
+                    <p class="mb-2"><strong>Kelas terdampak:</strong> ${escapeHtml(classesSummary)}</p>
+                    <div class="alert alert-warning mb-0 py-2">
+                        <i class="fas fa-triangle-exclamation me-1"></i> Pastikan siswa sudah menyelesaikan &amp; mengirim jawaban di halaman soal sebelum mengakhiri ujian.
+                    </div>
+                   </div>`,
+            icon: "warning",
+            width: "38rem",
+            position: "center",
+            showCancelButton: true,
+            confirmButtonColor: "#dc2626",
+            confirmButtonText: `<i class="fas fa-power-off me-1"></i> Ya, Akhiri &amp; Lepas Pin (${targets.length})`,
+            cancelButtonText: "Batal",
+            customClass: { popup: "robbani-swal-wide" }
+        }).then(res => {
+            if (res.isConfirmed) {
+                const now = Date.now();
+                const actorLabel = currentUser?.role === "ADMIN" ? "Admin" : (currentUser?.name || "Pengawas");
+                const updates = {};
+                targets.forEach(s => {
+                    delete alertedViolationsMap[s._fbKey];
+                    updates[`${s._fbKey}/status`] = "SELESAI";
+                    updates[`${s._fbKey}/remoteCommand`] = "FORCE_FINISH";
+                    updates[`${s._fbKey}/remoteCommandAt`] = now;
+                    updates[`${s._fbKey}/lastViolationReason`] = `Diakhiri masal oleh ${actorLabel}`;
+                });
+                fbDb.ref("students").update(updates).then(() => {
+                    showCenterSwal({
+                        title: `Ujian Masal Diakhiri (${targets.length} Siswa)`,
+                        text: "Aplikasi di HP seluruh siswa target otomatis melepas pin dan menutup sesi ujian.",
+                        icon: "success",
+                        timer: 2600
+                    });
+                }).catch(err => {
+                    showCenterSwal({
+                        title: "Gagal Mengakhiri Ujian Masal",
                         text: err?.message || "Periksa koneksi server Anda.",
                         icon: "error",
                         timer: 2800
